@@ -1,10 +1,14 @@
 """Business logic for the users app."""
 
+import logging
+
 from django.db import transaction as db_transaction
 from ninja.errors import HttpError
 
 from core.schemas import UserPreferencesUpdate, UserUpdate
 from users.models import ConsentType, User, UserConsent, UserPreferences, WeekdayChoices
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -172,7 +176,13 @@ class UserService:
         if not user.check_password(password):
             raise HttpError(401, 'Invalid password')
 
+        from django.core.mail import send_mail
+
         from workspaces.models import Workspace, WorkspaceMember
+
+        # Capture user details before deletion
+        user_email = user.email
+        user_name = user.full_name or user.email
 
         owned_workspaces = Workspace.objects.filter(owner=user)
 
@@ -210,6 +220,27 @@ class UserService:
         # Delete user — CASCADE: UserPreferences, UserConsent
         # SET_NULL: created_by/updated_by on all financial models
         user.delete()
+
+        # Send confirmation email after the transaction commits (non-blocking)
+        def _send_deletion_email():
+            try:
+                send_mail(
+                    subject='Your Monie account has been deleted',
+                    message=(
+                        f'Hi {user_name},\n\n'
+                        'Your Monie account and all associated data have been permanently deleted '
+                        'as requested. This action cannot be undone.\n\n'
+                        'If you did not request this deletion, please contact support immediately.\n\n'
+                        'Thank you for using Monie.\n'
+                    ),
+                    from_email=None,  # uses DEFAULT_FROM_EMAIL from settings
+                    recipient_list=[user_email],
+                    fail_silently=True,
+                )
+            except Exception:
+                logger.exception('Failed to send account deletion confirmation email to %s', user_email)
+
+        db_transaction.on_commit(_send_deletion_email)
 
         return {'deleted_workspaces': deleted_workspace_names}
 

@@ -1,6 +1,7 @@
 """Tests for GDPR account deletion (Right to Erasure)."""
 
 from django.contrib.auth import get_user_model
+from django.core import mail
 from django.test import TestCase
 
 from common.tests.mixins import AuthMixin
@@ -80,6 +81,23 @@ class AccountDeletionTests(AuthMixin, TestCase):
         data = response.json()
         self.assertTrue(data['can_delete'])
         self.assertIn(self.workspace.name, data['solo_workspaces'])
+
+    def test_delete_account_sends_confirmation_email(self):
+        """Successful account deletion sends a confirmation email to the user."""
+        user_email = self.user.email
+
+        with self.captureOnCommitCallbacks(execute=True):
+            self.client.delete(
+                '/api/users/me',
+                {'password': self.user_password},
+                content_type='application/json',
+                **self.auth_headers(),
+            )
+
+        self.assertEqual(len(mail.outbox), 1)
+        sent = mail.outbox[0]
+        self.assertIn(user_email, sent.to)
+        self.assertIn('deleted', sent.subject.lower())
 
     def test_deletion_check_blocked_when_shared_workspace(self):
         """Pre-deletion check shows blocked when user owns shared workspace."""

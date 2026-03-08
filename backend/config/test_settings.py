@@ -6,6 +6,10 @@ os.environ.setdefault('JWT_SECRET_KEY', 'test-jwt-secret-key-for-pytest')
 from config.settings import *  # noqa: F403
 
 # Use local memory cache for tests (no Redis dependency)
+# Capture sent emails in memory during tests
+EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+
+# Use local memory cache for tests (no Redis dependency)
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
