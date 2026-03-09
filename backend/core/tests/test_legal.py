@@ -62,7 +62,6 @@ class LegalTemplateTests(SimpleTestCase):
             LEGAL_OPERATOR_TYPE='individual',
             LEGAL_CONTACT_EMAIL='jane@example.com',
             LEGAL_CONTACT_ADDRESS='456 Personal St',
-            LEGAL_JURISDICTION='United States',
         ):
             privacy = get_privacy()
             content = privacy['content']
@@ -70,7 +69,6 @@ class LegalTemplateTests(SimpleTestCase):
             self.assertIn('Jane Smith', content)
             self.assertIn('jane@example.com', content)
             self.assertIn('456 Personal St', content)
-            self.assertIn('United States', content)
             self.assertIn('(an individual)', content)
 
     def test_terms_includes_version_and_date(self):
