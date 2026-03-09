@@ -89,7 +89,7 @@ class UserConsent(models.Model):
     must re-consent — creating a new record with the new version.
     """
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='consents')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='consents')
     consent_type = models.CharField(max_length=50, choices=ConsentType.choices)
     version = models.CharField(max_length=20)  # e.g., '1.0', '2.0'
     granted_at = models.DateTimeField(auto_now_add=True)
@@ -104,4 +104,5 @@ class UserConsent(models.Model):
 
     def __str__(self):
         status = 'withdrawn' if self.withdrawn_at else 'active'
-        return f'{self.user.email} - {self.consent_type} v{self.version} ({status})'
+        email = self.user.email if self.user else '[deleted]'
+        return f'{email} - {self.consent_type} v{self.version} ({status})'

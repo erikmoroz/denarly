@@ -120,7 +120,11 @@ class UserService:
         terms_version = get_terms()['version']
         privacy_version = get_privacy()['version']
 
-        active = {c.consent_type: c.version for c in UserConsent.objects.filter(user=user, withdrawn_at__isnull=True)}
+        active = {}
+        for c in UserConsent.objects.filter(user=user, withdrawn_at__isnull=True).order_by(
+            'consent_type', '-granted_at'
+        ):
+            active.setdefault(c.consent_type, c.version)
         terms_current = active.get(ConsentType.TERMS_OF_SERVICE) == terms_version
         privacy_current = active.get(ConsentType.PRIVACY_POLICY) == privacy_version
         return {
@@ -184,7 +188,7 @@ class UserService:
         2. Check for blocking workspaces (owned with other members) → raise 400
         3. Delete solo-owned workspaces (CASCADE handles all child data)
         4. Remove memberships from non-owned workspaces
-        5. Delete user record (CASCADE: preferences, consents, memberships; SET_NULL: audit refs)
+        5. Delete user record (CASCADE: preferences; SET_NULL: consents, audit refs)
 
         Args:
             user: The user requesting deletion
@@ -241,8 +245,8 @@ class UserService:
         # Remove memberships from non-owned workspaces (if any remain)
         WorkspaceMember.objects.filter(user=user).delete()
 
-        # Delete user — CASCADE: UserPreferences, UserConsent
-        # SET_NULL: created_by/updated_by on all financial models
+        # Delete user — CASCADE: UserPreferences
+        # SET_NULL: UserConsent (retained for GDPR audit), created_by/updated_by on financial models
         user.delete()
 
         # Send confirmation email after the transaction commits (non-blocking)
@@ -331,6 +335,11 @@ class UserService:
         memberships = WorkspaceMember.objects.filter(user=user).select_related('workspace')
         workspace_data = []
 
+        # NOTE: This uses nested loops (workspaces -> accounts -> periods -> 6 queries per
+        # period), resulting in O(W * A * P) queries. This is acceptable for now because
+        # the endpoint is rate-limited to 3 requests/hour. If performance becomes an issue
+        # for power users with years of data, refactor to batch-query each model type and
+        # assemble the nested structure in Python.
         for membership in memberships:
             ws = membership.workspace
             ws_entry = {

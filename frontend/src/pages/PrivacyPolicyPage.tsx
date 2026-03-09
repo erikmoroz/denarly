@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { legalApi } from '../api/client';
 import type { LegalDoc } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function PrivacyPolicyPage() {
   const [doc, setDoc] = useState<LegalDoc | null>(null);
   const [error, setError] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     legalApi.getPrivacy().then(setDoc).catch(() => setError(true));
@@ -16,8 +18,8 @@ export default function PrivacyPolicyPage() {
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="mb-8">
-          <Link to="/login" className="text-sm text-blue-600 hover:text-blue-500">
-            &larr; Back to login
+          <Link to={isAuthenticated ? '/' : '/login'} className="text-sm text-blue-600 hover:text-blue-500">
+            &larr; {isAuthenticated ? 'Back' : 'Back to login'}
           </Link>
         </div>
 

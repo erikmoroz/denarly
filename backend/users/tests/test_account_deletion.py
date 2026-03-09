@@ -111,3 +111,25 @@ class AccountDeletionTests(AuthMixin, TestCase):
         self.assertFalse(data['can_delete'])
         self.assertIsNotNone(data['blocking_workspaces'])
         self.assertEqual(len(data['blocking_workspaces']), 1)
+
+    def test_consent_records_survive_account_deletion(self):
+        """Consent records should be retained (with user=NULL) after account deletion."""
+        from users.models import UserConsent
+
+        UserConsent.objects.create(user=self.user, consent_type='terms_of_service', version='1.0')
+        UserConsent.objects.create(user=self.user, consent_type='privacy_policy', version='1.0')
+        consent_ids = list(UserConsent.objects.filter(user=self.user).values_list('id', flat=True))
+
+        self.client.delete(
+            '/api/users/me',
+            {'password': self.user_password},
+            content_type='application/json',
+            **self.auth_headers(),
+        )
+
+        # User is gone, but consent records survive with user=NULL
+        self.assertFalse(User.objects.filter(id=self.user.id).exists())
+        surviving = UserConsent.objects.filter(id__in=consent_ids)
+        self.assertEqual(surviving.count(), 2)
+        for consent in surviving:
+            self.assertIsNone(consent.user)

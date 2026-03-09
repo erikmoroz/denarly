@@ -1,9 +1,12 @@
 """Django-Ninja API endpoints for user management."""
 
+from typing import Literal
+
 from ninja import Router
 
 from common.auth import JWTAuth, user_to_schema
 from common.throttle import rate_limit
+from common.utils import get_client_ip
 from core.schemas import (
     AccountDeleteCheckOut,
     AccountDeleteIn,
@@ -22,6 +25,8 @@ from core.schemas import (
 from users import services
 
 router = Router(tags=['Users'])
+
+ConsentTypeLiteral = Literal['terms_of_service', 'privacy_policy']
 
 
 @router.get('/me', auth=JWTAuth(), response={200: UserOut, 401: DetailOut})
@@ -71,7 +76,7 @@ def list_consents(request):
 @router.post('/me/consents', auth=JWTAuth(), response={201: ConsentOut})
 def grant_consent(request, data: ConsentIn):
     """Record a new consent (e.g., after accepting updated terms)."""
-    ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR')
+    ip = get_client_ip(request)
     consent = services.UserService.record_consent(request.auth, data.consent_type, data.version, ip)
     return 201, consent
 
@@ -88,7 +93,7 @@ def get_consent_status(request):
 
 
 @router.delete('/me/consents/{consent_type}', auth=JWTAuth(), response={200: ConsentOut, 404: DetailOut})
-def withdraw_consent(request, consent_type: str):
+def withdraw_consent(request, consent_type: ConsentTypeLiteral):
     """Withdraw consent of a specific type."""
     consent = services.UserService.withdraw_consent(request.auth, consent_type)
     return 200, consent

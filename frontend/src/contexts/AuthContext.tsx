@@ -24,15 +24,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [needsReconsent, setNeedsReconsent] = useState(false);
   const navigate = useNavigate();
 
-  const checkConsentStatus = async () => {
+  const checkConsentStatus = async (): Promise<boolean> => {
     try {
       const status = await authApi.getConsentStatus();
       setNeedsReconsent(status.needs_reconsent);
       if (status.needs_reconsent) {
         navigate('/reconsent');
       }
+      return status.needs_reconsent;
     } catch {
       // Non-critical — do not block the user if the check fails
+      return false;
     }
   };
 
@@ -71,8 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentUser);
 
       toast.success('Logged in successfully');
-      await checkConsentStatus();
-      if (!needsReconsent) navigate('/');
+      const reconsent = await checkConsentStatus();
+      if (!reconsent) navigate('/');
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } };
       const message = err.response?.data?.detail || 'Login failed';

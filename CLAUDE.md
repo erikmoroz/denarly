@@ -222,8 +222,8 @@ def create_transaction_endpoint(request, data: TransactionCreate):
 
 > **When adding new data fields, processing purposes, or third-party integrations**, update
 > the legal pages to keep them accurate:
-> - `docs/legal/privacy-policy.md` — reflect any new data collected or how it is used
-> - `docs/legal/terms-of-service.md` — reflect any new features or usage rules
+> - `backend/core/templates/legal/privacy-policy.md` — reflect any new data collected or how it is used
+> - `backend/core/templates/legal/terms-of-service.md` — reflect any new features or usage rules
 >
 > These files use Django template syntax with variables from environment settings:
 > - `{{ operator_name }}` — Company or individual name (LEGAL_OPERATOR_NAME)

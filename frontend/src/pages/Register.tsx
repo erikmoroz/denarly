@@ -13,6 +13,7 @@ export default function Register() {
   const [workspaceName, setWorkspaceName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [termsVersion, setTermsVersion] = useState('');
   const [privacyVersion, setPrivacyVersion] = useState('');
 
@@ -158,28 +159,43 @@ export default function Register() {
             </div>
           </div>
 
-          <div className="flex items-start gap-2">
-            <input
-              id="accept-terms"
-              type="checkbox"
-              required
-              checked={acceptedTerms}
-              onChange={(e) => setAcceptedTerms(e.target.checked)}
-              className="mt-1"
-            />
-            <label htmlFor="accept-terms" className="text-sm text-gray-600">
-              I accept the{' '}
-              <Link to="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
-              {' '}and{' '}
-              <Link to="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
-              {' '}*
-            </label>
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <input
+                id="accept-terms"
+                type="checkbox"
+                required
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-1"
+              />
+              <label htmlFor="accept-terms" className="text-sm text-gray-600">
+                I accept the{' '}
+                <Link to="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
+                {' '}*
+              </label>
+            </div>
+            <div className="flex items-start gap-2">
+              <input
+                id="accept-privacy"
+                type="checkbox"
+                required
+                checked={acceptedPrivacy}
+                onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                className="mt-1"
+              />
+              <label htmlFor="accept-privacy" className="text-sm text-gray-600">
+                I accept the{' '}
+                <Link to="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
+                {' '}*
+              </label>
+            </div>
           </div>
 
           <div>
             <button
               type="submit"
-              disabled={isSubmitting || !acceptedTerms || !termsVersion}
+              disabled={isSubmitting || !acceptedTerms || !acceptedPrivacy || !termsVersion}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Creating account...' : 'Create account'}

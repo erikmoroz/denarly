@@ -1,12 +1,7 @@
-"""Reads and caches legal documents (Privacy Policy, Terms of Service) from docs/legal/."""
-
-from functools import lru_cache
-from pathlib import Path
+"""Reads and renders legal documents (Privacy Policy, Terms of Service)."""
 
 from django.conf import settings
-from django.template import Context, Template
-
-LEGAL_DIR = Path(__file__).resolve().parent.parent.parent / 'docs' / 'legal'
+from django.template.loader import render_to_string
 
 
 def _get_legal_context() -> dict:
@@ -22,19 +17,15 @@ def _get_legal_context() -> dict:
     }
 
 
-def _parse(filename: str) -> dict:
-    """Read a markdown file, strip YAML frontmatter, render template variables, return meta + content."""
-    text = (LEGAL_DIR / filename).read_text(encoding='utf-8')
-
+def _parse_frontmatter(text: str) -> tuple[dict, str]:
+    """Split YAML frontmatter from content. Returns (meta_dict, content_str)."""
     if not text.startswith('---\n'):
-        content = Template(text).render(Context(_get_legal_context()))
-        return {'version': '1.0', 'effective_date': '', 'content': content}
+        return {}, text
 
     try:
         end = text.index('\n---\n', 4)
     except ValueError:
-        content = Template(text).render(Context(_get_legal_context()))
-        return {'version': '1.0', 'effective_date': '', 'content': content}
+        return {}, text
 
     meta: dict[str, str] = {}
     for line in text[4:end].splitlines():
@@ -42,9 +33,13 @@ def _parse(filename: str) -> dict:
             key, _, value = line.partition(':')
             meta[key.strip()] = value.strip().strip('"\'')
 
-    raw_content = text[end + 5 :].strip()
-    content = Template(raw_content).render(Context(_get_legal_context()))
+    return meta, text[end + 5 :].strip()
 
+
+def _render(template_name: str) -> dict:
+    """Render a legal document template and extract frontmatter metadata."""
+    rendered = render_to_string(template_name, _get_legal_context())
+    meta, content = _parse_frontmatter(rendered)
     return {
         'version': meta.get('version', '1.0'),
         'effective_date': meta.get('effective_date', ''),
@@ -52,13 +47,11 @@ def _parse(filename: str) -> dict:
     }
 
 
-@lru_cache(maxsize=None)
 def get_terms() -> dict:
-    """Return parsed Terms of Service (cached after first read)."""
-    return _parse('terms-of-service.md')
+    """Return rendered Terms of Service with version and effective date."""
+    return _render('legal/terms-of-service.md')
 
 
-@lru_cache(maxsize=None)
 def get_privacy() -> dict:
-    """Return parsed Privacy Policy (cached after first read)."""
-    return _parse('privacy-policy.md')
+    """Return rendered Privacy Policy with version and effective date."""
+    return _render('legal/privacy-policy.md')

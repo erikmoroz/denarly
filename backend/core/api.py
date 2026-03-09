@@ -8,6 +8,7 @@ from ninja import Router
 from budget_accounts.models import BudgetAccount
 from common.auth import create_access_token
 from common.throttle import rate_limit
+from common.utils import get_client_ip
 from core.demo_fixtures import create_demo_fixtures
 from core.schemas import DetailOut, ErrorOut, LoginIn, RegisterIn, Token
 from workspaces.models import Workspace, WorkspaceMember
@@ -65,7 +66,7 @@ def register(request, data: RegisterIn):
         from users.models import ConsentType
         from users.services import UserService
 
-        ip = request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip() or request.META.get('REMOTE_ADDR')
+        ip = get_client_ip(request)
         UserService.record_consent(user, ConsentType.TERMS_OF_SERVICE, data.accepted_terms_version, ip)
         UserService.record_consent(user, ConsentType.PRIVACY_POLICY, data.accepted_privacy_version, ip)
 

@@ -35,6 +35,7 @@ This directory contains documentation for Monie's GDPR compliance implementation
   - Solo-owned workspaces: fully deleted with all budget data
   - Shared workspace memberships: membership removed, workspace data preserved
   - `created_by`/`updated_by` on financial records: set to NULL (anonymized)
+  - `UserConsent` records: retained with `user=NULL` for GDPR audit trail
 
 ### Right to Access & Portability (Articles 15, 20)
 
@@ -46,8 +47,8 @@ This directory contains documentation for Monie's GDPR compliance implementation
 
 ### Public-Facing Pages
 
-- `/privacy` — Privacy Policy (served from `docs/legal/privacy-policy.md`)
-- `/terms` — Terms of Service (served from `docs/legal/terms-of-service.md`)
+- `/privacy` — Privacy Policy (served from `backend/core/templates/legal/privacy-policy.md`)
+- `/terms` — Terms of Service (served from `backend/core/templates/legal/terms-of-service.md`)
 
 Both pages are generated from markdown templates with operator information from environment variables:
 
@@ -60,7 +61,7 @@ Both pages are generated from markdown templates with operator information from 
 | `LEGAL_JURISDICTION` | Legal jurisdiction |
 
 To update policies:
-1. Edit the markdown file in `docs/legal/`
+1. Edit the markdown file in `backend/core/templates/legal/`
 2. Bump the `version` in YAML frontmatter
 3. Redeploy — users with old versions will be prompted to re-consent
 
