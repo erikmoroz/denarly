@@ -1,9 +1,11 @@
 """Tests for legal document templates and API endpoints."""
 
+from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase, override_settings
 
 from common.tests.mixins import APIClientMixin
-from core.legal import _get_legal_context, get_privacy, get_terms
+from core.legal import _get_legal_context, get_privacy, get_terms, render_from_template
+from core.models import LegalDocument
 
 
 class LegalTemplateTests(SimpleTestCase):
@@ -46,7 +48,7 @@ class LegalTemplateTests(SimpleTestCase):
             LEGAL_CONTACT_ADDRESS='123 Business Ave',
             LEGAL_JURISDICTION='California, USA',
         ):
-            terms = get_terms()
+            terms = render_from_template('legal/terms-of-service.md')
             content = terms['content']
 
             self.assertIn('Acme Corp', content)
@@ -63,7 +65,7 @@ class LegalTemplateTests(SimpleTestCase):
             LEGAL_CONTACT_EMAIL='jane@example.com',
             LEGAL_CONTACT_ADDRESS='456 Personal St',
         ):
-            privacy = get_privacy()
+            privacy = render_from_template('legal/privacy-policy.md')
             content = privacy['content']
 
             self.assertIn('Jane Smith', content)
@@ -73,7 +75,7 @@ class LegalTemplateTests(SimpleTestCase):
 
     def test_terms_includes_version_and_date(self):
         """Terms of Service should include version and effective date from frontmatter."""
-        terms = get_terms()
+        terms = render_from_template('legal/terms-of-service.md')
 
         self.assertIn('version', terms)
         self.assertIn('effective_date', terms)
@@ -83,7 +85,7 @@ class LegalTemplateTests(SimpleTestCase):
 
     def test_privacy_includes_version_and_date(self):
         """Privacy Policy should include version and effective date from frontmatter."""
-        privacy = get_privacy()
+        privacy = render_from_template('legal/privacy-policy.md')
 
         self.assertIn('version', privacy)
         self.assertIn('effective_date', privacy)
@@ -97,11 +99,10 @@ class LegalTemplateTests(SimpleTestCase):
             LEGAL_OPERATOR_NAME='Simple Corp',
             LEGAL_CONTACT_ADDRESS='',
         ):
-            terms = get_terms()
+            terms = render_from_template('legal/terms-of-service.md')
             content = terms['content']
 
             self.assertIn('Simple Corp', content)
-            # Address line should not appear if empty
 
     def test_privacy_template_without_address(self):
         """Privacy Policy should omit address section if not provided."""
@@ -110,23 +111,21 @@ class LegalTemplateTests(SimpleTestCase):
             LEGAL_OPERATOR_TYPE='individual',
             LEGAL_CONTACT_ADDRESS='',
         ):
-            privacy = get_privacy()
+            privacy = render_from_template('legal/privacy-policy.md')
             content = privacy['content']
 
             self.assertIn('Simple Person', content)
 
     def test_templates_contain_required_sections(self):
         """Legal documents should contain all required GDPR sections."""
-        terms = get_terms()
-        privacy = get_privacy()
+        terms = render_from_template('legal/terms-of-service.md')
+        privacy = render_from_template('legal/privacy-policy.md')
 
-        # Terms should have these sections
         self.assertIn('Acceptance of Terms', terms['content'])
         self.assertIn('Data & Privacy', terms['content'])
         self.assertIn('Account Termination', terms['content'])
         self.assertIn('Governing Law', terms['content'])
 
-        # Privacy should have these sections
         self.assertIn('Data We Collect', privacy['content'])
         self.assertIn('Legal Basis', privacy['content'])
         self.assertIn('Your Rights', privacy['content'])
@@ -140,10 +139,9 @@ class LegalTemplateTests(SimpleTestCase):
             LEGAL_CONTACT_EMAIL='test@test.com',
             LEGAL_JURISDICTION='Test',
         ):
-            terms = get_terms()
-            privacy = get_privacy()
+            terms = render_from_template('legal/terms-of-service.md')
+            privacy = render_from_template('legal/privacy-policy.md')
 
-            # Should not contain template variable syntax
             self.assertNotIn('{{', terms['content'])
             self.assertNotIn('}}', terms['content'])
             self.assertNotIn('{%', terms['content'])
@@ -155,8 +153,58 @@ class LegalTemplateTests(SimpleTestCase):
             self.assertNotIn('%}', privacy['content'])
 
 
+class LegalDBTests(TestCase):
+    """Tests for legal document database reads."""
+
+    def setUp(self):
+        LegalDocument.objects.create(
+            doc_type='terms_of_service',
+            version='9.9',
+            effective_date='2099-01-01',
+            content='Custom terms content',
+            is_active=True,
+        )
+        LegalDocument.objects.create(
+            doc_type='privacy_policy',
+            version='9.9',
+            effective_date='2099-01-01',
+            content='Custom privacy content',
+            is_active=True,
+        )
+
+    def test_get_terms_returns_db_content(self):
+        result = get_terms()
+        self.assertEqual(result['content'], 'Custom terms content')
+        self.assertEqual(result['version'], '9.9')
+
+    def test_get_privacy_returns_db_content(self):
+        result = get_privacy()
+        self.assertEqual(result['content'], 'Custom privacy content')
+
+    def test_raises_if_no_active_document(self):
+        LegalDocument.objects.filter(doc_type='terms_of_service').update(is_active=False)
+        with self.assertRaises(RuntimeError):
+            get_terms()
+
+
 class LegalAPITests(APIClientMixin, TestCase):
     """Tests for legal document API endpoints."""
+
+    def setUp(self):
+        LegalDocument.objects.create(
+            doc_type='terms_of_service',
+            version='1.0',
+            effective_date='2024-01-01',
+            content='Terms content from database',
+            is_active=True,
+        )
+        LegalDocument.objects.create(
+            doc_type='privacy_policy',
+            version='1.0',
+            effective_date='2024-01-01',
+            content='Privacy content from database',
+            is_active=True,
+        )
 
     def test_get_terms_endpoint(self):
         """GET /api/legal/terms should return terms with version and content."""
@@ -169,7 +217,7 @@ class LegalAPITests(APIClientMixin, TestCase):
         self.assertIn('effective_date', data)
         self.assertIn('content', data)
         self.assertIsInstance(data['content'], str)
-        self.assertGreater(len(data['content']), 100)
+        self.assertGreater(len(data['content']), 10)
 
     def test_get_privacy_endpoint(self):
         """GET /api/legal/privacy should return privacy policy with version and content."""
@@ -182,39 +230,65 @@ class LegalAPITests(APIClientMixin, TestCase):
         self.assertIn('effective_date', data)
         self.assertIn('content', data)
         self.assertIsInstance(data['content'], str)
-        self.assertGreater(len(data['content']), 100)
+        self.assertGreater(len(data['content']), 10)
 
     def test_legal_endpoints_are_public(self):
         """Legal document endpoints should not require authentication."""
-        # No auth headers provided
         response_terms = self.client.get('/api/legal/terms')
         response_privacy = self.client.get('/api/legal/privacy')
 
         self.assertEqual(response_terms.status_code, 200)
         self.assertEqual(response_privacy.status_code, 200)
 
-    def test_terms_content_matches_template(self):
-        """Terms API should return rendered template content."""
-        with override_settings(
-            LEGAL_OPERATOR_NAME='API Test Corp',
-            LEGAL_CONTACT_EMAIL='apitest@example.com',
-        ):
-            response = self.client.get('/api/legal/terms')
-            data = response.json()
+    def test_terms_content_matches_db(self):
+        """Terms API should return content from database."""
+        response = self.client.get('/api/legal/terms')
+        data = response.json()
 
-            self.assertIn('API Test Corp', data['content'])
-            self.assertIn('apitest@example.com', data['content'])
+        self.assertEqual(data['content'], 'Terms content from database')
+        self.assertEqual(data['version'], '1.0')
 
-    def test_privacy_content_matches_template(self):
-        """Privacy API should return rendered template content."""
-        with override_settings(
-            LEGAL_OPERATOR_NAME='API Test Individual',
-            LEGAL_OPERATOR_TYPE='individual',
-            LEGAL_CONTACT_EMAIL='individual@example.com',
-        ):
-            response = self.client.get('/api/legal/privacy')
-            data = response.json()
+    def test_privacy_content_matches_db(self):
+        """Privacy API should return content from database."""
+        response = self.client.get('/api/legal/privacy')
+        data = response.json()
 
-            self.assertIn('API Test Individual', data['content'])
-            self.assertIn('individual@example.com', data['content'])
-            self.assertIn('(an individual)', data['content'])
+        self.assertEqual(data['content'], 'Privacy content from database')
+
+
+class SeedLegalDocumentsTests(TestCase):
+    """Tests for the seed_legal_documents management command."""
+
+    def test_seed_creates_active_documents(self):
+        """Seed command should create active legal documents from templates."""
+        call_command('seed_legal_documents')
+
+        terms = LegalDocument.objects.get(doc_type='terms_of_service', is_active=True)
+        privacy = LegalDocument.objects.get(doc_type='privacy_policy', is_active=True)
+
+        self.assertIsNotNone(terms)
+        self.assertIsNotNone(privacy)
+        self.assertGreater(len(terms.content), 100)
+        self.assertGreater(len(privacy.content), 100)
+
+    def test_seed_is_idempotent(self):
+        """Running seed multiple times should not create duplicates."""
+        call_command('seed_legal_documents')
+        call_command('seed_legal_documents')
+
+        active_terms = LegalDocument.objects.filter(doc_type='terms_of_service', is_active=True).count()
+        active_privacy = LegalDocument.objects.filter(doc_type='privacy_policy', is_active=True).count()
+
+        self.assertEqual(active_terms, 1)
+        self.assertEqual(active_privacy, 1)
+
+    def test_seed_force_updates_existing(self):
+        """Seed with --force should update existing active documents."""
+        call_command('seed_legal_documents')
+
+        LegalDocument.objects.filter(is_active=True).update(content='Old content')
+
+        call_command('seed_legal_documents', force=True)
+
+        terms = LegalDocument.objects.get(doc_type='terms_of_service', is_active=True)
+        self.assertNotEqual(terms.content, 'Old content')

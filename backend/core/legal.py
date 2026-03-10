@@ -3,6 +3,8 @@
 from django.conf import settings
 from django.template.loader import render_to_string
 
+from core.models import LegalDocument
+
 
 def _get_legal_context() -> dict:
     """Build template context from Django settings."""
@@ -36,8 +38,8 @@ def _parse_frontmatter(text: str) -> tuple[dict, str]:
     return meta, text[end + 5 :].strip()
 
 
-def _render(template_name: str) -> dict:
-    """Render a legal document template and extract frontmatter metadata."""
+def render_from_template(template_name: str) -> dict:
+    """Render a legal document template. Used only by the seed command."""
     rendered = render_to_string(template_name, _get_legal_context())
     meta, content = _parse_frontmatter(rendered)
     return {
@@ -47,11 +49,26 @@ def _render(template_name: str) -> dict:
     }
 
 
+def _get_active(doc_type: str) -> dict:
+    """Return active document from DB. Raises if none found."""
+    try:
+        doc = LegalDocument.objects.get(doc_type=doc_type, is_active=True)
+    except LegalDocument.DoesNotExist:
+        raise RuntimeError(
+            f'No active legal document found for type "{doc_type}". Run: python manage.py seed_legal_documents'
+        )
+    return {
+        'version': doc.version,
+        'effective_date': str(doc.effective_date),
+        'content': doc.content,
+    }
+
+
 def get_terms() -> dict:
-    """Return rendered Terms of Service with version and effective date."""
-    return _render('legal/terms-of-service.md')
+    """Return Terms of Service from database."""
+    return _get_active(LegalDocument.DocType.TERMS_OF_SERVICE)
 
 
 def get_privacy() -> dict:
-    """Return rendered Privacy Policy with version and effective date."""
-    return _render('legal/privacy-policy.md')
+    """Return Privacy Policy from database."""
+    return _get_active(LegalDocument.DocType.PRIVACY_POLICY)
