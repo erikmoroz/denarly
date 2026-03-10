@@ -232,6 +232,14 @@ def create_transaction_endpoint(request, data: TransactionCreate):
 > - `{% if is_individual %}...{% endif %}` — Conditional for individuals vs companies
 >
 > After editing, bump the `version` in the YAML frontmatter to trigger re-consent prompts.
+>
+> **Deploying legal document updates**: The database is the runtime source of truth for legal
+> documents. After bumping template versions, run:
+> ```bash
+> python manage.py seed_legal_documents          # Seeds from templates if version changed
+> python manage.py seed_legal_documents --force  # Force update even if version matches
+> ```
+> Alternatively, use Django admin to create/edit `LegalDocument` records directly.
 
 ## Documentation
 

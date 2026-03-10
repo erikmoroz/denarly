@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
 import type { ConsentStatus } from '../types';
 import toast from 'react-hot-toast';
 
 export default function ReConsentPage() {
   const navigate = useNavigate();
+  const { checkConsentStatus } = useAuth();
   const [status, setStatus] = useState<ConsentStatus | null>(null);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
@@ -35,6 +37,7 @@ export default function ReConsentPage() {
         await authApi.grantConsent('privacy_policy', status.privacy_version_required);
       }
       toast.success('Thank you for accepting the updated documents');
+      await checkConsentStatus();
       navigate('/');
     } catch {
       toast.error('Failed to record consent. Please try again.');

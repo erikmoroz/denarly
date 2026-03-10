@@ -63,6 +63,7 @@ def register(request, data: RegisterIn):
         )
 
         # Record GDPR consents
+        # Imported inline to avoid circular import: users.services → core.schemas → core.api
         from users.models import ConsentType
         from users.services import UserService
 
