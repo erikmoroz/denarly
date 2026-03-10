@@ -47,10 +47,10 @@ This directory contains documentation for Monie's GDPR compliance implementation
 
 ### Public-Facing Pages
 
-- `/privacy` — Privacy Policy (served from `backend/core/templates/legal/privacy-policy.md`)
-- `/terms` — Terms of Service (served from `backend/core/templates/legal/terms-of-service.md`)
+- `/privacy` — Privacy Policy
+- `/terms` — Terms of Service
 
-Both pages are generated from markdown templates with operator information from environment variables:
+Legal documents are served from the database. Templates serve as a one-time seed.
 
 | Variable | Description |
 |----------|-------------|
@@ -61,9 +61,17 @@ Both pages are generated from markdown templates with operator information from 
 | `LEGAL_JURISDICTION` | Legal jurisdiction |
 
 To update policies:
+
+**Option 1: Edit templates and reseed**
 1. Edit the markdown file in `backend/core/templates/legal/`
 2. Bump the `version` in YAML frontmatter
-3. Redeploy — users with old versions will be prompted to re-consent
+3. Run `python manage.py seed_legal_documents`
+4. Users with old versions will be prompted to re-consent
+
+**Option 2: Django Admin (self-hosted)**
+1. Open `/admin/core/legaldocument/`
+2. Add new record with updated content
+3. Check `is_active` and save (previous version auto-deactivates)
 
 ## Data Subject Rights Summary
 
