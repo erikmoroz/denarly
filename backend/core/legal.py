@@ -2,6 +2,7 @@
 
 from django.conf import settings
 from django.template.loader import render_to_string
+from ninja.errors import HttpError
 
 from core.models import LegalDocument
 
@@ -54,8 +55,9 @@ def _get_active(doc_type: str) -> dict:
     try:
         doc = LegalDocument.objects.get(doc_type=doc_type, is_active=True)
     except LegalDocument.DoesNotExist:
-        raise RuntimeError(
-            f'No active legal document found for type "{doc_type}". Run: python manage.py seed_legal_documents'
+        raise HttpError(
+            503,
+            'Legal documents are not configured. Run: python manage.py seed_legal_documents',
         )
     return {
         'version': doc.version,

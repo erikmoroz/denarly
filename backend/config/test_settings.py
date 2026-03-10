@@ -6,7 +6,6 @@ os.environ.setdefault('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver')
 
 from config.settings import *  # noqa: F403
 
-# Use local memory cache for tests (no Redis dependency)
 # Capture sent emails in memory during tests
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 

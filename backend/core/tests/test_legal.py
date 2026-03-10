@@ -2,6 +2,7 @@
 
 from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase, override_settings
+from ninja.errors import HttpError
 
 from common.tests.mixins import APIClientMixin
 from core.legal import _get_legal_context, get_privacy, get_terms, render_from_template
@@ -183,8 +184,9 @@ class LegalDBTests(TestCase):
 
     def test_raises_if_no_active_document(self):
         LegalDocument.objects.filter(doc_type='terms_of_service').update(is_active=False)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(HttpError) as ctx:
             get_terms()
+        self.assertEqual(ctx.exception.status_code, 503)
 
 
 class LegalAPITests(APIClientMixin, TestCase):

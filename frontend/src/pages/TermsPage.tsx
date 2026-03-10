@@ -42,27 +42,29 @@ export default function TermsPage() {
           )}
 
           {doc && (
-            <ReactMarkdown
-              components={{
-                h2: ({ children }) => (
-                  <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-3">{children}</h2>
-                ),
-                p: ({ children }) => (
-                  <p className="text-gray-700 mb-3">{children}</p>
-                ),
-                ul: ({ children }) => (
-                  <ul className="list-disc list-inside text-gray-700 space-y-1 ml-4 mb-3">{children}</ul>
-                ),
-                li: ({ children }) => <li>{children}</li>,
-                strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-                em: ({ children }) => <em className="italic">{children}</em>,
-                a: ({ href, children }) => (
-                  <a href={href} className="text-blue-600 hover:underline">{children}</a>
-                ),
-              }}
-            >
-              {doc.content}
-            </ReactMarkdown>
+            <div className="prose-legal">
+              <ReactMarkdown
+                components={{
+                  h2: ({ children }) => (
+                    <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-3">{children}</h2>
+                  ),
+                  p: ({ children }) => (
+                    <p className="text-gray-700 mb-3">{children}</p>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="list-disc list-inside text-gray-700 space-y-1 ml-4 mb-3">{children}</ul>
+                  ),
+                  li: ({ children }) => <li>{children}</li>,
+                  strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                  em: ({ children }) => <em className="italic">{children}</em>,
+                  a: ({ href, children }) => (
+                    <a href={href} className="text-blue-600 hover:underline">{children}</a>
+                  ),
+                }}
+              >
+                {doc.content}
+              </ReactMarkdown>
+            </div>
           )}
         </div>
       </div>
