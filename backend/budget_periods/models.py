@@ -1,9 +1,14 @@
 from django.conf import settings
 from django.db import models
 
+from common.querysets import WorkspaceScopedQuerySet
+
 
 class BudgetPeriod(models.Model):
     """Budget period model for time-based budget tracking."""
+
+    WORKSPACE_FILTER = 'budget_account__workspace_id'
+    objects = WorkspaceScopedQuerySet.as_manager()
 
     budget_account = models.ForeignKey(
         'budget_accounts.BudgetAccount', on_delete=models.CASCADE, related_name='budget_periods'

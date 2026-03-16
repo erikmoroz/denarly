@@ -5,20 +5,21 @@ from django.http import HttpRequest
 from ninja import Router
 from ninja.errors import HttpError
 
-from common.auth import JWTAuth
+from common.auth import JWTAuth, WorkspaceJWTAuth
 from core.schemas import MessageOut
 from workspaces.models import ADMIN_ROLES, Role, Workspace, WorkspaceMember
 from workspaces.schemas import (
     CurrencyCreate,
     CurrencyOut,
     MemberPasswordReset,
+    WorkspaceCreate,
     WorkspaceMemberAdd,
     WorkspaceMemberOut,
     WorkspaceMemberRoleUpdate,
     WorkspaceOut,
     WorkspaceUpdate,
 )
-from workspaces.services import CurrencyService
+from workspaces.services import CurrencyService, WorkspaceService
 
 router = Router(tags=['Workspaces'])
 User = get_user_model()
@@ -29,44 +30,26 @@ User = get_user_model()
 # =============================================================================
 
 
-@router.get('/currencies', response=list[CurrencyOut], auth=JWTAuth())
+@router.get('/currencies', response=list[CurrencyOut], auth=WorkspaceJWTAuth())
 def list_currencies(request: HttpRequest):
     """List all currencies for the current workspace."""
-    user = request.auth
-    workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No current workspace selected')
-
-    return CurrencyService.list_currencies(workspace)
+    return CurrencyService.list_currencies(request.auth.current_workspace)
 
 
-@router.post('/currencies', response={201: CurrencyOut, 400: dict}, auth=JWTAuth())
+@router.post('/currencies', response={201: CurrencyOut, 400: dict}, auth=WorkspaceJWTAuth())
 def create_currency(request: HttpRequest, data: CurrencyCreate):
     """Create a new currency for the current workspace."""
-    user = request.auth
-    workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No current workspace selected')
-
-    require_role(user, workspace.id, ADMIN_ROLES)
-
+    workspace = request.auth.current_workspace
+    require_role(request.auth, workspace.id, ADMIN_ROLES)
     currency = CurrencyService.create_currency(workspace, data)
     return 201, currency
 
 
-@router.delete('/currencies/{currency_id}', response={204: None}, auth=JWTAuth())
+@router.delete('/currencies/{currency_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_currency(request: HttpRequest, currency_id: int):
     """Delete a currency from the current workspace."""
-    user = request.auth
-    workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No current workspace selected')
-
-    require_role(user, workspace.id, ADMIN_ROLES)
-
+    workspace = request.auth.current_workspace
+    require_role(request.auth, workspace.id, ADMIN_ROLES)
     CurrencyService.delete_currency(currency_id, workspace)
     return 204, None
 
@@ -123,41 +106,54 @@ def list_workspaces(request: HttpRequest):
 
     memberships = WorkspaceMember.objects.filter(user_id=user.id).select_related('workspace')
 
-    workspace_ids = [m.workspace_id for m in memberships]
-    workspaces = Workspace.objects.filter(id__in=workspace_ids)
+    result = []
+    for m in memberships:
+        ws = m.workspace
+        ws.user_role = m.role
+        result.append(ws)
 
-    return list(workspaces)
+    return result
 
 
-@router.get('/current', response=WorkspaceOut, auth=JWTAuth())
+@router.post('/', response={201: WorkspaceOut}, auth=JWTAuth())
+def create_workspace_endpoint(request: HttpRequest, data: WorkspaceCreate):
+    """Create a new workspace. User becomes owner and is auto-switched to it."""
+    workspace = WorkspaceService.create_workspace(user=request.auth, name=data.name)
+    workspace.user_role = Role.OWNER
+    return 201, workspace
+
+
+# IMPORTANT: /current routes must come BEFORE /{workspace_id} routes
+@router.get('/current', response=WorkspaceOut, auth=WorkspaceJWTAuth())
 def get_current_workspace_info(request: HttpRequest):
     """Get current workspace details."""
-    user = request.auth
-    workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No current workspace selected')
-
-    return workspace
+    return request.auth.current_workspace
 
 
-@router.put('/current', response=WorkspaceOut, auth=JWTAuth())
+@router.put('/current', response=WorkspaceOut, auth=WorkspaceJWTAuth())
 def update_current_workspace(request: HttpRequest, data: WorkspaceUpdate):
     """Update current workspace (requires owner or admin role)."""
-    user = request.auth
-    workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No current workspace selected')
-
-    # Check user has admin or owner role
-    require_role(user, workspace.id, ADMIN_ROLES)
+    workspace = request.auth.current_workspace
+    require_role(request.auth, workspace.id, ADMIN_ROLES)
 
     if data.name is not None:
         workspace.name = data.name
         workspace.save()
 
     return workspace
+
+
+@router.delete('/{workspace_id}', response={204: None}, auth=JWTAuth())
+def delete_workspace_endpoint(request: HttpRequest, workspace_id: int):
+    """Delete a workspace. Only the owner can delete it."""
+    workspace = Workspace.objects.filter(id=workspace_id).first()
+    if not workspace:
+        raise HttpError(404, 'Workspace not found')
+
+    require_role(request.auth, workspace_id, [Role.OWNER])
+
+    WorkspaceService.delete_workspace(user=request.auth, workspace=workspace)
+    return 204, None
 
 
 @router.post('/{workspace_id}/switch', response=MessageOut, auth=JWTAuth())
@@ -325,10 +321,11 @@ def leave_workspace(request: HttpRequest, workspace_id: int):
     # Remove membership
     member.delete()
 
-    # If this was user's current workspace, unset it
+    # If this was user's current workspace, switch to another available workspace
     if user.current_workspace_id == workspace_id:
-        user.current_workspace_id = None
-        user.save()
+        next_workspace = Workspace.objects.filter(members__user=user).exclude(id=workspace_id).first()
+        user.current_workspace = next_workspace
+        user.save(update_fields=['current_workspace'])
 
     return {'message': 'Successfully left workspace'}
 
