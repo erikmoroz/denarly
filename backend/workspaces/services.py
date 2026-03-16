@@ -3,7 +3,8 @@
 from django.db import transaction as db_transaction
 from ninja.errors import HttpError
 
-from workspaces.models import ADMIN_ROLES, Currency, Workspace  # noqa: F401
+from budget_accounts.models import BudgetAccount
+from workspaces.models import Currency, Role, Workspace, WorkspaceMember
 
 DEFAULT_CURRENCIES = [
     ('USD', 'US Dollar'),
@@ -11,6 +12,66 @@ DEFAULT_CURRENCIES = [
     ('PLN', 'Polish Zloty'),
     ('EUR', 'Euro'),
 ]
+
+
+class WorkspaceService:
+    @staticmethod
+    @db_transaction.atomic
+    def create_workspace(user, name: str, create_demo: bool = True) -> Workspace:
+        """
+        Creates a workspace with full initial setup:
+        - WorkspaceMember (owner role)
+        - Default currencies (USD, UAH, PLN, EUR)
+        - Default "General" budget account (PLN currency)
+        - Demo fixtures (optional)
+        - Sets user.current_workspace to the new workspace
+        """
+        workspace = Workspace.objects.create(name=name, owner=user)
+        WorkspaceMember.objects.create(workspace=workspace, user=user, role=Role.OWNER)
+        CurrencyService.create_default_currencies(workspace)
+        pln = workspace.currencies.get(symbol='PLN')
+        BudgetAccount.objects.create(
+            workspace=workspace,
+            name='General',
+            default_currency=pln,
+            is_active=True,
+        )
+
+        if create_demo:
+            from core.demo_fixtures import create_demo_fixtures
+
+            create_demo_fixtures(workspace_id=workspace.id, user_id=user.id)
+
+        user.current_workspace = workspace
+        user.save(update_fields=['current_workspace'])
+
+        return workspace
+
+    @staticmethod
+    @db_transaction.atomic
+    def delete_workspace(user, workspace: Workspace) -> None:
+        """
+        Deletes workspace and all its data (via CASCADE).
+        Switches current_workspace for ALL users who had this as their active workspace.
+        The requesting user is switched to their next available workspace, or None.
+        """
+        from users.models import User as UserModel
+
+        workspace_id = workspace.id
+
+        affected_users = list(UserModel.objects.filter(current_workspace_id=workspace_id).exclude(id=user.id))
+
+        next_workspace = Workspace.objects.filter(members__user=user).exclude(id=workspace_id).first()
+
+        workspace.delete()
+
+        user.current_workspace = next_workspace
+        user.save(update_fields=['current_workspace'])
+
+        for affected_user in affected_users:
+            next_ws = Workspace.objects.filter(members__user=affected_user).first()
+            affected_user.current_workspace = next_ws
+            affected_user.save(update_fields=['current_workspace'])
 
 
 class CurrencyService:

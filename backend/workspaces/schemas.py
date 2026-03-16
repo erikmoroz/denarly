@@ -53,6 +53,20 @@ class WorkspaceOut(BaseModel):
     name: str
     owner_id: Optional[int] = None
     created_at: datetime
+    user_role: Optional[str] = None
+
+
+class WorkspaceCreate(BaseModel):
+    """Schema for creating a workspace."""
+
+    name: str = Field(..., max_length=100)
+
+    @field_validator('name')
+    @classmethod
+    def name_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError('Name cannot be empty')
+        return v.strip()
 
 
 class WorkspaceMemberAdd(BaseModel):

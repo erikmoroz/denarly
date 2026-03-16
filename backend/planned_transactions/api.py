@@ -8,7 +8,7 @@ from ninja import File, Form, Query, Router
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
 
-from common.auth import JWTAuth
+from common.auth import WorkspaceJWTAuth
 from common.throttle import validate_file_size
 from planned_transactions.schemas import (
     PlannedTransactionCreate,
@@ -25,23 +25,18 @@ router = Router(tags=['Planned Transactions'])
 # =============================================================================
 
 
-@router.get('', response=list[PlannedTransactionOut], auth=JWTAuth())
+@router.get('', response=list[PlannedTransactionOut], auth=WorkspaceJWTAuth())
 def list_planned(
     request: HttpRequest,
     status: str | None = Query(None),
     budget_period_id: int | None = Query(None),
 ):
     """List planned transactions for the current workspace."""
-    workspace = request.auth.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
+    workspace_id = request.auth.current_workspace_id
 
     from planned_transactions.models import PlannedTransaction
 
-    queryset = PlannedTransaction.objects.select_related('category').filter(
-        budget_period__budget_account__workspace_id=workspace.id
-    )
+    queryset = PlannedTransaction.objects.select_related('category').for_workspace(workspace_id)
 
     if status:
         queryset = queryset.filter(status=status)
@@ -51,21 +46,18 @@ def list_planned(
     return list(queryset.order_by('planned_date'))
 
 
-@router.post('', response={201: PlannedTransactionOut, 400: dict}, auth=JWTAuth())
+@router.post('', response={201: PlannedTransactionOut, 400: dict}, auth=WorkspaceJWTAuth())
 def create_planned(request: HttpRequest, data: PlannedTransactionCreate):
     """Create a new planned transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
 
     planned = PlannedTransactionService.create(user, workspace, data)
     return 201, planned
 
 
 # Specific routes must come before parameterized routes
-@router.get('/export/', auth=JWTAuth())
+@router.get('/export/', auth=WorkspaceJWTAuth())
 def export_planned_transactions(
     request: HttpRequest,
     budget_period_id: int = Query(...),
@@ -73,9 +65,6 @@ def export_planned_transactions(
 ):
     """Export planned transactions from a budget period as JSON."""
     workspace = request.auth.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
 
     export_data = PlannedTransactionService.export(workspace, budget_period_id, status)
     response = HttpResponse(
@@ -86,7 +75,7 @@ def export_planned_transactions(
     return response
 
 
-@router.post('/import', response={201: dict, 400: dict}, auth=JWTAuth())
+@router.post('/import', response={201: dict, 400: dict}, auth=WorkspaceJWTAuth())
 def import_planned_transactions(
     request: HttpRequest,
     budget_period_id: int = Form(...),
@@ -95,9 +84,6 @@ def import_planned_transactions(
     """Import planned transactions from a JSON file into a budget period (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
 
     validate_file_size(file, max_size_mb=5)
 
@@ -115,48 +101,39 @@ def import_planned_transactions(
 
 
 # Parameterized routes must come after specific routes
-@router.get('/{planned_id}', response=PlannedTransactionOut, auth=JWTAuth())
+@router.get('/{planned_id}', response=PlannedTransactionOut, auth=WorkspaceJWTAuth())
 def get_planned(request: HttpRequest, planned_id: int):
     """Get a specific planned transaction by ID."""
-    workspace = request.auth.current_workspace
+    workspace_id = request.auth.current_workspace_id
 
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
-
-    planned = PlannedTransactionService.get_planned(planned_id, workspace.id)
+    planned = PlannedTransactionService.get_planned(planned_id, workspace_id)
     if not planned:
         raise HttpError(404, 'Planned transaction not found')
 
     return planned
 
 
-@router.put('/{planned_id}', response=PlannedTransactionOut, auth=JWTAuth())
+@router.put('/{planned_id}', response=PlannedTransactionOut, auth=WorkspaceJWTAuth())
 def update_planned(request: HttpRequest, planned_id: int, data: PlannedTransactionUpdate):
     """Update a planned transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
 
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
-
     planned = PlannedTransactionService.update(user, workspace, planned_id, data)
     return planned
 
 
-@router.delete('/{planned_id}', response={204: None}, auth=JWTAuth())
+@router.delete('/{planned_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_planned(request: HttpRequest, planned_id: int):
     """Delete a planned transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
 
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
-
     PlannedTransactionService.delete(user, workspace, planned_id)
     return 204, None
 
 
-@router.post('/{planned_id}/execute', response=PlannedTransactionOut, auth=JWTAuth())
+@router.post('/{planned_id}/execute', response=PlannedTransactionOut, auth=WorkspaceJWTAuth())
 def execute_planned(
     request: HttpRequest,
     planned_id: int,
@@ -165,9 +142,6 @@ def execute_planned(
     """Execute a planned transaction, creating an actual transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
 
     planned = PlannedTransactionService.execute(user, workspace, planned_id, payment_date)
     return planned

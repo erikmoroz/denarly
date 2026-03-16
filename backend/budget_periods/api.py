@@ -15,7 +15,7 @@ from budget_periods.schemas import (
     BudgetPeriodUpdate,
 )
 from budget_periods.services import BudgetPeriodService
-from common.auth import JWTAuth
+from common.auth import WorkspaceJWTAuth
 from common.permissions import require_role
 from common.services.base import get_workspace_currencies, get_workspace_period
 from core.schemas import DetailOut
@@ -35,11 +35,11 @@ router = Router(tags=['Budget Periods'])
 # =============================================================================
 
 
-@router.get('', response=list[BudgetPeriodOut], auth=JWTAuth())
+@router.get('', response=list[BudgetPeriodOut], auth=WorkspaceJWTAuth())
 def list_periods(request, budget_account_id: Optional[int] = Query(None)):
     """List budget periods for the current workspace, optionally filtered by budget account."""
-    workspace = request.auth.current_workspace
-    queryset = BudgetPeriod.objects.select_related('budget_account').filter(budget_account__workspace_id=workspace.id)
+    workspace_id = request.auth.current_workspace_id
+    queryset = BudgetPeriod.objects.select_related('budget_account').for_workspace(workspace_id)
 
     if budget_account_id:
         queryset = queryset.filter(budget_account_id=budget_account_id)
@@ -47,13 +47,14 @@ def list_periods(request, budget_account_id: Optional[int] = Query(None)):
     return list(queryset.order_by('-start_date'))
 
 
-@router.get('/current', response={200: BudgetPeriodOut, 404: DetailOut}, auth=JWTAuth())
+@router.get('/current', response={200: BudgetPeriodOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def get_current_period(request, current_date: date):
     """Get the budget period containing the given date for the current workspace."""
-    workspace = request.auth.current_workspace
+    workspace_id = request.auth.current_workspace_id
     period = (
         BudgetPeriod.objects.select_related('budget_account')
-        .filter(budget_account__workspace_id=workspace.id, start_date__lte=current_date, end_date__gte=current_date)
+        .for_workspace(workspace_id)
+        .filter(start_date__lte=current_date, end_date__gte=current_date)
         .first()
     )
     if not period:
@@ -61,17 +62,17 @@ def get_current_period(request, current_date: date):
     return 200, period
 
 
-@router.get('{period_id}', response={200: BudgetPeriodOut, 404: DetailOut}, auth=JWTAuth())
+@router.get('{period_id}', response={200: BudgetPeriodOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def get_period(request, period_id: int):
     """Get a specific budget period by ID."""
-    workspace = request.auth.current_workspace
-    period = get_workspace_period(period_id, workspace.id)
+    workspace_id = request.auth.current_workspace_id
+    period = get_workspace_period(period_id, workspace_id)
     if not period:
         return 404, {'detail': 'Period not found'}
     return 200, period
 
 
-@router.post('', response={201: BudgetPeriodOut, 404: DetailOut}, auth=JWTAuth())
+@router.post('', response={201: BudgetPeriodOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def create_period(request, data: BudgetPeriodCreate):
     """Create a new budget period. The budget_account_id must belong to the current workspace."""
     user = request.auth
@@ -116,7 +117,7 @@ def create_period(request, data: BudgetPeriodCreate):
     return 201, period
 
 
-@router.put('{period_id}', response={200: BudgetPeriodOut, 404: DetailOut}, auth=JWTAuth())
+@router.put('{period_id}', response={200: BudgetPeriodOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def update_period(request, period_id: int, data: BudgetPeriodUpdate):
     """Update a budget period."""
     user = request.auth
@@ -150,15 +151,15 @@ def update_period(request, period_id: int, data: BudgetPeriodUpdate):
     return 200, period
 
 
-@router.delete('{period_id}', response={204: None, 404: DetailOut}, auth=JWTAuth())
+@router.delete('{period_id}', response={204: None, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def delete_period(request, period_id: int):
     """Delete a budget period."""
     user = request.auth
-    workspace = user.current_workspace
+    workspace_id = request.auth.current_workspace_id
 
-    require_role(user, workspace.id, WRITE_ROLES)
+    require_role(user, workspace_id, WRITE_ROLES)
 
-    period = get_workspace_period(period_id, workspace.id)
+    period = get_workspace_period(period_id, workspace_id)
     if not period:
         return 404, {'detail': 'Period not found'}
 
@@ -166,7 +167,7 @@ def delete_period(request, period_id: int):
     return 204, None
 
 
-@router.post('{period_id}/copy', response={201: BudgetPeriodOut, 404: DetailOut}, auth=JWTAuth())
+@router.post('{period_id}/copy', response={201: BudgetPeriodOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def copy_period(request, period_id: int, data: BudgetPeriodCopy):
     """
     Copy a budget period with all categories, budgets, and planned transactions.

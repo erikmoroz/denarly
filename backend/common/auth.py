@@ -6,6 +6,7 @@ from typing import Optional
 import jwt
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from ninja.errors import HttpError
 from ninja.security import HttpBearer
 
 from core.schemas import UserOut
@@ -30,6 +31,20 @@ class JWTAuth(HttpBearer):
             return user
         except (jwt.PyJWTError, User.DoesNotExist):
             return None
+
+
+class WorkspaceJWTAuth(JWTAuth):
+    """
+    Same JWT validation as JWTAuth, but additionally requires the user
+    to have an active current_workspace. Use on all workspace-scoped endpoints.
+    Returns 400 (not 401) because the token is valid — the workspace state is missing.
+    """
+
+    def authenticate(self, request, token: str):
+        user = super().authenticate(request, token)
+        if user is not None and not user.current_workspace_id:
+            raise HttpError(400, 'No active workspace. Please create or join a workspace.')
+        return user
 
 
 def create_access_token(user: User) -> str:

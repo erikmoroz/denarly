@@ -95,6 +95,7 @@ export interface Workspace {
   name: string;
   owner_id?: number;
   created_at: string;
+  user_role?: string;
 }
 
 export interface BudgetAccount {

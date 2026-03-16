@@ -7,7 +7,7 @@ from ninja.errors import HttpError
 
 from budget_accounts.models import BudgetAccount
 from budget_accounts.schemas import BudgetAccountCreate, BudgetAccountOut, BudgetAccountUpdate
-from common.auth import JWTAuth
+from common.auth import WorkspaceJWTAuth
 from common.permissions import require_role
 from common.services.base import resolve_currency
 from workspaces.models import ADMIN_ROLES
@@ -21,19 +21,15 @@ User = get_user_model()
 # =============================================================================
 
 
-@router.get('', response=list[BudgetAccountOut], auth=JWTAuth())
+@router.get('', response=list[BudgetAccountOut], auth=WorkspaceJWTAuth())
 def list_budget_accounts(
     request: HttpRequest,
     include_inactive: bool = Query(False),
 ):
     """List all budget accounts in current workspace."""
-    user = request.auth
-    workspace = user.current_workspace
+    workspace_id = request.auth.current_workspace_id
 
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
-
-    queryset = BudgetAccount.objects.filter(workspace=workspace)
+    queryset = BudgetAccount.objects.for_workspace(workspace_id)
 
     if not include_inactive:
         queryset = queryset.filter(is_active=True)
@@ -41,29 +37,22 @@ def list_budget_accounts(
     return list(queryset.order_by('display_order', 'name'))
 
 
-@router.get('/{account_id}', response=BudgetAccountOut, auth=JWTAuth())
+@router.get('/{account_id}', response=BudgetAccountOut, auth=WorkspaceJWTAuth())
 def get_budget_account(request: HttpRequest, account_id: int):
     """Get a specific budget account."""
-    user = request.auth
-    workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
+    workspace_id = request.auth.current_workspace_id
 
     try:
-        return BudgetAccount.objects.get(id=account_id, workspace=workspace)
+        return BudgetAccount.objects.get(id=account_id, workspace_id=workspace_id)
     except BudgetAccount.DoesNotExist:
         raise HttpError(404, 'Budget account not found')
 
 
-@router.post('', response={201: BudgetAccountOut, 400: dict}, auth=JWTAuth())
+@router.post('', response={201: BudgetAccountOut, 400: dict}, auth=WorkspaceJWTAuth())
 def create_budget_account(request: HttpRequest, data: BudgetAccountCreate):
     """Create a new budget account (requires owner or admin role)."""
     user = request.auth
     workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
 
     require_role(user, workspace.id, ADMIN_ROLES)
 
@@ -91,14 +80,11 @@ def create_budget_account(request: HttpRequest, data: BudgetAccountCreate):
     return 201, account
 
 
-@router.put('/{account_id}', response=BudgetAccountOut, auth=JWTAuth())
+@router.put('/{account_id}', response=BudgetAccountOut, auth=WorkspaceJWTAuth())
 def update_budget_account(request: HttpRequest, account_id: int, data: BudgetAccountUpdate):
     """Update a budget account (requires owner or admin role)."""
     user = request.auth
     workspace = user.current_workspace
-
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
 
     require_role(user, workspace.id, ADMIN_ROLES)
 
@@ -130,19 +116,16 @@ def update_budget_account(request: HttpRequest, account_id: int, data: BudgetAcc
     return account
 
 
-@router.delete('/{account_id}', response={204: None}, auth=JWTAuth())
+@router.delete('/{account_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_budget_account(request: HttpRequest, account_id: int):
     """Delete a budget account (requires owner or admin role)."""
     user = request.auth
-    workspace = user.current_workspace
+    workspace_id = request.auth.current_workspace_id
 
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
-
-    require_role(user, workspace.id, ADMIN_ROLES)
+    require_role(user, workspace_id, ADMIN_ROLES)
 
     try:
-        account = BudgetAccount.objects.get(id=account_id, workspace=workspace)
+        account = BudgetAccount.objects.get(id=account_id, workspace_id=workspace_id)
     except BudgetAccount.DoesNotExist:
         raise HttpError(404, 'Budget account not found')
 
@@ -151,19 +134,16 @@ def delete_budget_account(request: HttpRequest, account_id: int):
     return 204, None
 
 
-@router.patch('/{account_id}/archive', response=BudgetAccountOut, auth=JWTAuth())
+@router.patch('/{account_id}/archive', response=BudgetAccountOut, auth=WorkspaceJWTAuth())
 def toggle_archive_budget_account(request: HttpRequest, account_id: int):
     """Archive/unarchive a budget account (toggle is_active)."""
     user = request.auth
-    workspace = user.current_workspace
+    workspace_id = request.auth.current_workspace_id
 
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
-
-    require_role(user, workspace.id, ADMIN_ROLES)
+    require_role(user, workspace_id, ADMIN_ROLES)
 
     try:
-        account = BudgetAccount.objects.get(id=account_id, workspace=workspace)
+        account = BudgetAccount.objects.get(id=account_id, workspace_id=workspace_id)
     except BudgetAccount.DoesNotExist:
         raise HttpError(404, 'Budget account not found')
 

@@ -54,6 +54,17 @@ Workspace (top-level container)
 | 3 | Budget Period | Time-bounded tracking (monthly, quarterly) |
 | 4 | Categories, Transactions, etc. | Actual budget data |
 
+### Multi-Workspace Support
+
+Users can create and switch between multiple workspaces:
+
+- **Workspace Creation**: `POST /api/workspaces/` creates a new workspace with default currencies and a "General" budget account
+- **Workspace Switching**: `POST /api/workspaces/{id}/switch` changes the user's active workspace
+- **Workspace Deletion**: `DELETE /api/workspaces/{id}` removes a workspace and all its data (owner only)
+- **Auto-switch**: Creating a workspace automatically switches the user to it
+
+All workspace-scoped endpoints use `WorkspaceJWTAuth` which validates the user has an active workspace.
+
 ## Backend Architecture
 
 ### Directory Structure
@@ -219,6 +230,20 @@ workspaces ──┬── users (via workspace_members)
                                                      ├── currency_exchanges
                                                      └── period_balances
 ```
+
+### Workspace-Scoped Queries
+
+All workspace-scoped models support the `for_workspace()` queryset method:
+
+```python
+# Get all transactions for a workspace
+transactions = Transaction.objects.for_workspace(workspace_id)
+
+# Chain with other filters
+transactions = Transaction.objects.for_workspace(workspace_id).filter(type='expense')
+```
+
+Each model defines a `WORKSPACE_FILTER` class attribute specifying the ORM lookup path to the workspace.
 
 ## Security Architecture
 

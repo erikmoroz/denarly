@@ -1,66 +1,123 @@
-import { createContext, useContext } from 'react';
-import type { ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { createContext, useContext, useState, type ReactNode } from 'react';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { workspacesApi, workspaceMembersApi } from '../api/client';
 import type { Workspace, WorkspaceMember } from '../types';
 
-interface WorkspaceContextType {
+interface WorkspaceContextValue {
   workspace: Workspace | null;
+  workspaces: Workspace[];
   currentMembership: WorkspaceMember | null;
-  userRole: 'owner' | 'admin' | 'member' | 'viewer' | null;
+  userRole: string | null;
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;
+  switchWorkspace: (id: number) => Promise<void>;
+  createWorkspace: (name: string) => Promise<Workspace>;
+  deleteWorkspace: (id: number) => Promise<void>;
 }
 
-const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
+const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefined);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+  const [newWorkspace, setNewWorkspace] = useState<Workspace | null>(null);
 
-  // Fetch current workspace
   const {
     data: workspace,
     isLoading: workspaceLoading,
     error: workspaceError,
-    refetch: refetchWorkspace
+    refetch: refetchWorkspace,
   } = useQuery({
     queryKey: ['workspace-current'],
     queryFn: workspacesApi.getCurrent,
     enabled: isAuthenticated,
   });
 
-  // Fetch workspace members to get current user's role
+  const {
+    data: workspaces = [],
+    isLoading: workspacesLoading,
+    refetch: refetchWorkspaces,
+  } = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: workspacesApi.list,
+    enabled: isAuthenticated,
+  });
+
   const {
     data: members,
     isLoading: membersLoading,
     error: membersError,
-    refetch: refetchMembers
+    refetch: refetchMembers,
   } = useQuery({
     queryKey: ['workspace-members', workspace?.id],
     queryFn: () => workspaceMembersApi.list(workspace!.id),
     enabled: !!workspace?.id,
   });
 
-  // Find current user's membership
   const currentMembership = members?.find(m => m.user_id === user?.id) || null;
   const userRole = currentMembership?.role || null;
 
+  const switchMutation = useMutation({
+    mutationFn: (workspaceId: number) => workspacesApi.switch(workspaceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      localStorage.removeItem('monie_selected_account');
+    },
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (name: string) => workspacesApi.create({ name }),
+    onSuccess: (newWs) => {
+      setNewWorkspace(newWs);
+      queryClient.invalidateQueries();
+      localStorage.removeItem('monie_selected_account');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (workspaceId: number) => workspacesApi.delete(workspaceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      localStorage.removeItem('monie_selected_account');
+    },
+  });
+
+  const switchWorkspace = async (id: number) => {
+    await switchMutation.mutateAsync(id);
+  };
+
+  const createWorkspace = async (name: string): Promise<Workspace> => {
+    const ws = await createMutation.mutateAsync(name);
+    return ws;
+  };
+
+  const deleteWorkspace = async (id: number) => {
+    await deleteMutation.mutateAsync(id);
+  };
+
   const refetch = () => {
     refetchWorkspace();
+    refetchWorkspaces();
     refetchMembers();
   };
+
+  const currentWorkspace = newWorkspace || workspace || null;
 
   return (
     <WorkspaceContext.Provider
       value={{
-        workspace: workspace || null,
+        workspace: currentWorkspace,
+        workspaces,
         currentMembership,
         userRole,
-        isLoading: workspaceLoading || membersLoading,
+        isLoading: workspaceLoading || membersLoading || workspacesLoading,
         error: (workspaceError || membersError) as Error | null,
         refetch,
+        switchWorkspace,
+        createWorkspace,
+        deleteWorkspace,
       }}
     >
       {children}

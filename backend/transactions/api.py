@@ -11,7 +11,7 @@ from ninja.errors import HttpError
 from ninja.files import UploadedFile
 
 from budget_periods.models import BudgetPeriod
-from common.auth import JWTAuth
+from common.auth import WorkspaceJWTAuth
 from common.throttle import validate_file_size
 from core.schemas import DetailOut
 from transactions.models import Transaction
@@ -26,7 +26,7 @@ router = Router(tags=['Transactions'])
 # =============================================================================
 
 
-@router.get('', response=list[TransactionOut], auth=JWTAuth())
+@router.get('', response=list[TransactionOut], auth=WorkspaceJWTAuth())
 def list_transactions(
     request: HttpRequest,
     budget_period_id: Optional[int] = Query(None),
@@ -41,13 +41,9 @@ def list_transactions(
     ordering: Optional[str] = Query(None, pattern=r'^(date|-date)$'),
 ):
     """List transactions for the current workspace with optional filters."""
-    workspace = request.auth.current_workspace
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
+    workspace_id = request.auth.current_workspace_id
 
-    queryset = Transaction.objects.select_related('category').filter(
-        budget_period__budget_account__workspace_id=workspace.id
-    )
+    queryset = Transaction.objects.select_related('category').for_workspace(workspace_id)
 
     if budget_period_id:
         queryset = queryset.filter(budget_period_id=budget_period_id)
@@ -55,7 +51,7 @@ def list_transactions(
         period = (
             BudgetPeriod.objects.select_related('budget_account')
             .filter(
-                budget_account__workspace_id=workspace.id,
+                budget_account__workspace_id=workspace_id,
                 start_date__lte=current_date,
                 end_date__gte=current_date,
             )
@@ -85,24 +81,20 @@ def list_transactions(
 
 
 # Specific routes must come before parameterized routes
-@router.get('/export/', auth=JWTAuth())
+@router.get('/export/', auth=WorkspaceJWTAuth())
 def export_transactions(
     request: HttpRequest,
     budget_period_id: int = Query(...),
     type: Optional[str] = Query(None, pattern=r'^(expense|income)$'),
 ):
     """Export transactions from a budget period as JSON."""
-    workspace = request.auth.current_workspace
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
-
-    export_data = TransactionService.export(workspace, budget_period_id, type)
+    export_data = TransactionService.export(request.auth.current_workspace, budget_period_id, type)
     response = HttpResponse(json.dumps(export_data, indent=2), content_type='application/json')
     response['Content-Disposition'] = f'attachment; filename=transactions_export_{budget_period_id}.json'
     return response
 
 
-@router.post('/import', response={201: dict, 400: dict, 404: dict}, auth=JWTAuth())
+@router.post('/import', response={201: dict, 400: dict, 404: dict}, auth=WorkspaceJWTAuth())
 def import_transactions(
     request: HttpRequest,
     budget_period_id: int = Form(...),
@@ -111,8 +103,6 @@ def import_transactions(
     """Import transactions from a JSON file into a budget period (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
 
     validate_file_size(file, max_size_mb=5)
 
@@ -130,50 +120,42 @@ def import_transactions(
 
 
 # Parameterized routes must come after specific routes
-@router.get('/{transaction_id}', response={200: TransactionOut, 404: DetailOut}, auth=JWTAuth())
+@router.get('/{transaction_id}', response={200: TransactionOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def get_transaction(request: HttpRequest, transaction_id: int):
     """Get a specific transaction by ID."""
-    workspace = request.auth.current_workspace
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
+    workspace_id = request.auth.current_workspace_id
 
-    trans = TransactionService.get_transaction(transaction_id, workspace.id)
+    trans = TransactionService.get_transaction(transaction_id, workspace_id)
     if not trans:
         return 404, {'detail': 'Transaction not found'}
     return 200, trans
 
 
-@router.post('', response={201: TransactionOut}, auth=JWTAuth())
+@router.post('', response={201: TransactionOut}, auth=WorkspaceJWTAuth())
 def create_transaction(request: HttpRequest, data: TransactionCreate):
     """Create a new transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
 
     trans = TransactionService.create(user, workspace, data)
     return 201, trans
 
 
-@router.put('/{transaction_id}', response={200: TransactionOut}, auth=JWTAuth())
+@router.put('/{transaction_id}', response={200: TransactionOut}, auth=WorkspaceJWTAuth())
 def update_transaction(request: HttpRequest, transaction_id: int, data: TransactionCreate):
     """Update a transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
 
     trans = TransactionService.update(user, workspace, transaction_id, data)
     return 200, trans
 
 
-@router.delete('/{transaction_id}', response={204: None}, auth=JWTAuth())
+@router.delete('/{transaction_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_transaction(request: HttpRequest, transaction_id: int):
     """Delete a transaction (requires write access)."""
     user = request.auth
     workspace = user.current_workspace
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
 
     TransactionService.delete(user, workspace, transaction_id)
     return 204, None

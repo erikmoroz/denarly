@@ -102,25 +102,33 @@ from transactions import services
 
 Endpoints are thin wrappers — parse the request, call the service, return the response. Business logic belongs in `services.py`.
 
+For workspace-scoped endpoints, use `WorkspaceJWTAuth` which automatically validates that the user has an active workspace:
+
 ```python
+from common.auth import WorkspaceJWTAuth
 from transactions import services
 
 router = Router(tags=['Transactions'])
 
-@router.get('', response=list[TransactionOut], auth=JWTAuth())
+@router.get('', response=list[TransactionOut], auth=WorkspaceJWTAuth())
 def list_transactions(request: HttpRequest, budget_period_id: Optional[int] = Query(None)):
     """Docstring describing the endpoint."""
-    workspace = request.auth.current_workspace
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
-    return services.list_transactions(request.auth, workspace, budget_period_id)
+    workspace_id = request.auth.current_workspace_id
+    return services.list_transactions(request.auth, workspace_id, budget_period_id)
 
-@router.post('', response={201: TransactionOut}, auth=JWTAuth())
+@router.post('', response={201: TransactionOut}, auth=WorkspaceJWTAuth())
 def create_transaction(request: HttpRequest, data: TransactionCreate):
-    workspace = request.auth.current_workspace
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
-    return 201, services.create_transaction(request.auth, workspace, data)
+    return 201, services.create_transaction(request.auth, request.auth.current_workspace, data)
+```
+
+For endpoints that don't require an active workspace (e.g., listing all workspaces), use `JWTAuth`:
+
+```python
+from common.auth import JWTAuth
+
+@router.get('', response=list[WorkspaceOut], auth=JWTAuth())
+def list_workspaces(request: HttpRequest):
+    return services.list_workspaces(request.auth)
 ```
 
 ### Service Layer
@@ -267,10 +275,39 @@ import { useAuth } from '../contexts/AuthContext'
 
 ## Security Model (Four Layers)
 
-1. **Authentication**: `auth=JWTAuth()` on endpoints
+1. **Authentication**: `auth=JWTAuth()` on endpoints (or `auth=WorkspaceJWTAuth()` for workspace-scoped endpoints)
 2. **Workspace Membership**: Verify `request.auth.current_workspace`
 3. **Role-Based Permissions**: `require_role(user, workspace_id, WRITE_ROLES)`
-4. **Resource Ownership**: Filter queries by workspace ID
+4. **Resource Ownership**: Filter queries by workspace ID using `Model.objects.for_workspace(workspace_id)`
+
+### Workspace-Scoped Endpoints
+
+For endpoints that require an active workspace, use `WorkspaceJWTAuth`:
+
+```python
+from common.auth import WorkspaceJWTAuth
+
+@router.get('', response=list[TransactionOut], auth=WorkspaceJWTAuth())
+def list_transactions(request: HttpRequest):
+    workspace_id = request.auth.current_workspace_id
+    return Transaction.objects.for_workspace(workspace_id)
+```
+
+`WorkspaceJWTAuth` returns 400 (not 401) if no workspace is selected, because the token is valid — the workspace state is missing.
+
+### Workspace-Scoped Queries
+
+Use the `for_workspace()` queryset method:
+
+```python
+# Instead of:
+Transaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id)
+
+# Use:
+Transaction.objects.for_workspace(workspace_id)
+```
+
+All workspace-scoped models have `WORKSPACE_FILTER` defined.
 
 ## GDPR & Data Integrity Rules
 
@@ -307,6 +344,10 @@ import { useAuth } from '../contexts/AuthContext'
 ### Backend: Workspace-scoped Query
 
 ```python
+# Using the for_workspace() queryset method (preferred)
+queryset = Transaction.objects.for_workspace(workspace_id)
+
+# Direct filter (alternative)
 queryset = Transaction.objects.filter(
     budget_period__budget_account__workspace_id=workspace.id
 )
@@ -316,17 +357,27 @@ queryset = Transaction.objects.filter(
 
 ```python
 # In api.py — no business logic, just wire up
-@router.post('', response={201: TransactionOut}, auth=JWTAuth())
+@router.post('', response={201: TransactionOut}, auth=WorkspaceJWTAuth())
 def create_transaction_endpoint(request, data: TransactionCreate):
-    workspace = request.auth.current_workspace
-    if not workspace:
-        raise HttpError(404, 'No workspace selected')
-    return 201, services.create_transaction(request.auth, workspace, data)
+    return 201, services.create_transaction(request.auth, request.auth.current_workspace, data)
+```
+
+### Backend: Workspace Management
+
+```python
+from workspaces.services import WorkspaceService
+
+# Create a new workspace (auto-switches user to it)
+workspace = WorkspaceService.create_workspace(user=user, name='New Workspace', create_demo=True)
+
+# Delete a workspace (switches all affected users to another workspace)
+WorkspaceService.delete_workspace(user=user, workspace=workspace)
 ```
 
 ### Frontend: Use Context
 
 ```typescript
 const { user, isAuthenticated } = useAuth()
+const { workspace, workspaces, switchWorkspace, createWorkspace } = useWorkspace()
 const { currentPeriod } = useBudgetPeriod()
 ```
