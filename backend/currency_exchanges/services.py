@@ -71,11 +71,11 @@ class CurrencyExchangeService:
     @db_transaction.atomic
     def create(user, workspace, data: CurrencyExchangeCreate) -> CurrencyExchange:
         """Create an exchange record and update period balances."""
-        from_currency = resolve_currency(workspace, data.from_currency)
+        from_currency = resolve_currency(workspace.id, data.from_currency)
         if not from_currency:
             raise CurrencyExchangeCurrencyNotFoundError(data.from_currency)
 
-        to_currency = resolve_currency(workspace, data.to_currency)
+        to_currency = resolve_currency(workspace.id, data.to_currency)
         if not to_currency:
             raise CurrencyExchangeCurrencyNotFoundError(data.to_currency)
 

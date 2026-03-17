@@ -17,10 +17,10 @@ class CurrencyDuplicateSymbolError(ValidationError):
 
 class WorkspaceCannotBeDeletedError(ServiceError):
     http_status = 400
-    message = (
+    default_message = (
         'Cannot delete this workspace: one or more members have no other workspace. '
         'Remove those members first or ensure they belong to another workspace.'
     )
 
     def __init__(self):
-        super().__init__(self.message, code='workspace_cannot_be_deleted')
+        super().__init__(code='workspace_cannot_be_deleted')

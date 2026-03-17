@@ -15,11 +15,11 @@ def get_workspace_period(period_id: int, workspace_id: int) -> BudgetPeriod | No
     )
 
 
-def resolve_currency(workspace, symbol: str):
+def resolve_currency(workspace_id: int, symbol: str):
     """Look up a Currency by symbol for a workspace. Returns None if not found."""
     from workspaces.models import Currency
 
-    return Currency.objects.filter(workspace=workspace, symbol=symbol).first()
+    return Currency.objects.filter(workspace_id=workspace_id, symbol=symbol).first()
 
 
 def get_or_create_period_balance(period_id: int, currency, user=None) -> PeriodBalance:

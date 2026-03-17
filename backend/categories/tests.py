@@ -124,7 +124,11 @@ class TestListCategories(CategoriesTestCase):
         self.assertStatus(400)
 
     def test_list_categories_from_other_workspace_fails(self):
-        """Test that listing categories from another workspace returns empty list."""
+        """Cross-workspace period access returns empty list (200), not 404.
+
+        We intentionally do not raise 404 to avoid leaking whether the period
+        ID exists in another workspace.
+        """
         # Create another workspace with period and category
         from workspaces.models import Currency, Workspace, WorkspaceMember
 

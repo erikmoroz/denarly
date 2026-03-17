@@ -143,7 +143,7 @@ class TransactionService:
     @db_transaction.atomic
     def create(user, workspace, data: TransactionCreate) -> Transaction:
         """Create a transaction and update the period balance."""
-        currency = resolve_currency(workspace, data.currency)
+        currency = resolve_currency(workspace.id, data.currency)
         if not currency:
             raise TransactionCurrencyNotFoundError(data.currency)
 

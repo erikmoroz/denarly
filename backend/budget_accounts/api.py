@@ -35,9 +35,7 @@ def create_budget_account(request: HttpRequest, data: BudgetAccountCreate):
     user = request.auth
     workspace_id = request.auth.current_workspace_id
     require_role(user, workspace_id, ADMIN_ROLES)
-    workspace = user.current_workspace
-    account = BudgetAccountService.create(user, workspace, data)
-    return 201, account
+    return 201, BudgetAccountService.create(user, workspace_id, data)
 
 
 @router.put('/{account_id}', response=BudgetAccountOut, auth=WorkspaceJWTAuth())
@@ -46,8 +44,7 @@ def update_budget_account(request: HttpRequest, account_id: int, data: BudgetAcc
     user = request.auth
     workspace_id = request.auth.current_workspace_id
     require_role(user, workspace_id, ADMIN_ROLES)
-    workspace = user.current_workspace
-    return BudgetAccountService.update(user, workspace, account_id, data)
+    return BudgetAccountService.update(user, workspace_id, account_id, data)
 
 
 @router.delete('/{account_id}', response={204: None}, auth=WorkspaceJWTAuth())

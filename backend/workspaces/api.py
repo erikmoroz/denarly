@@ -41,18 +41,18 @@ def list_currencies(request: HttpRequest):
 @router.post('/currencies', response={201: CurrencyOut}, auth=WorkspaceJWTAuth())
 def create_currency(request: HttpRequest, data: CurrencyCreate):
     """Create a new currency for the current workspace."""
-    workspace = request.auth.current_workspace
-    require_role(request.auth, workspace.id, ADMIN_ROLES)
-    currency = CurrencyService.create_currency(workspace, data)
+    workspace_id = request.auth.current_workspace_id
+    require_role(request.auth, workspace_id, ADMIN_ROLES)
+    currency = CurrencyService.create_currency(workspace_id, data)
     return 201, currency
 
 
 @router.delete('/currencies/{currency_id}', response={204: None}, auth=WorkspaceJWTAuth())
 def delete_currency(request: HttpRequest, currency_id: int):
     """Delete a currency from the current workspace."""
-    workspace = request.auth.current_workspace
-    require_role(request.auth, workspace.id, ADMIN_ROLES)
-    CurrencyService.delete_currency(currency_id, workspace)
+    workspace_id = request.auth.current_workspace_id
+    require_role(request.auth, workspace_id, ADMIN_ROLES)
+    CurrencyService.delete_currency(currency_id, workspace_id)
     return 204, None
 
 

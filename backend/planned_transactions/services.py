@@ -70,7 +70,7 @@ class PlannedTransactionService:
     @staticmethod
     def create(user, workspace, data: PlannedTransactionCreate) -> PlannedTransaction:
         """Create a planned transaction."""
-        currency = resolve_currency(workspace, data.currency)
+        currency = resolve_currency(workspace.id, data.currency)
         if not currency:
             raise PlannedTransactionCurrencyNotFoundError(data.currency)
 
@@ -94,7 +94,7 @@ class PlannedTransactionService:
         """Update a planned transaction."""
         planned = PlannedTransactionService.get_planned(planned_id, workspace.id)
 
-        currency = resolve_currency(workspace, data.currency)
+        currency = resolve_currency(workspace.id, data.currency)
         if not currency:
             raise PlannedTransactionCurrencyNotFoundError(data.currency)
 

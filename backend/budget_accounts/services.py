@@ -31,17 +31,17 @@ class BudgetAccountService:
 
     @staticmethod
     @db_transaction.atomic
-    def create(user, workspace, data: BudgetAccountCreate) -> BudgetAccount:
+    def create(user, workspace_id: int, data: BudgetAccountCreate) -> BudgetAccount:
         """Create a new budget account."""
-        if BudgetAccount.objects.filter(workspace=workspace, name=data.name).exists():
+        if BudgetAccount.objects.filter(workspace_id=workspace_id, name=data.name).exists():
             raise BudgetAccountDuplicateNameError()
 
-        default_currency = resolve_currency(workspace, data.default_currency)
+        default_currency = resolve_currency(workspace_id, data.default_currency)
         if not default_currency:
             raise BudgetAccountCurrencyNotFoundError(data.default_currency)
 
         return BudgetAccount.objects.create(
-            workspace=workspace,
+            workspace_id=workspace_id,
             name=data.name,
             description=data.description,
             default_currency=default_currency,
@@ -55,18 +55,18 @@ class BudgetAccountService:
 
     @staticmethod
     @db_transaction.atomic
-    def update(user, workspace, account_id: int, data: BudgetAccountUpdate) -> BudgetAccount:
+    def update(user, workspace_id: int, account_id: int, data: BudgetAccountUpdate) -> BudgetAccount:
         """Update a budget account."""
-        account = BudgetAccountService.get(account_id, workspace.id)
+        account = BudgetAccountService.get(account_id, workspace_id)
 
         if data.name is not None and data.name != account.name:
-            if BudgetAccount.objects.filter(workspace=workspace, name=data.name).exclude(id=account_id).exists():
+            if BudgetAccount.objects.filter(workspace_id=workspace_id, name=data.name).exclude(id=account_id).exists():
                 raise BudgetAccountDuplicateNameError()
 
         update_data = data.model_dump(exclude_unset=True)
         if 'default_currency' in update_data:
             currency_symbol = update_data.pop('default_currency')
-            currency = resolve_currency(workspace, currency_symbol)
+            currency = resolve_currency(workspace_id, currency_symbol)
             if not currency:
                 raise BudgetAccountCurrencyNotFoundError(currency_symbol)
             account.default_currency = currency

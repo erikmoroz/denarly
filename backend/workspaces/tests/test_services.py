@@ -222,7 +222,7 @@ class TestCurrencyService(TestCase):
         workspace = WorkspaceFactory()
         pln = Currency.objects.get(workspace=workspace, symbol='PLN')
 
-        result = CurrencyService.get_currency(pln.id, workspace)
+        result = CurrencyService.get_currency(pln.id, workspace.id)
         self.assertEqual(result, pln)
 
     def test_get_currency_wrong_workspace(self):
@@ -231,7 +231,7 @@ class TestCurrencyService(TestCase):
         workspace2 = WorkspaceFactory()
 
         pln = Currency.objects.get(workspace=workspace1, symbol='PLN')
-        result = CurrencyService.get_currency(pln.id, workspace2)
+        result = CurrencyService.get_currency(pln.id, workspace2.id)
         self.assertIsNone(result)
 
     def test_create_currency(self):
@@ -242,10 +242,10 @@ class TestCurrencyService(TestCase):
             symbol = 'GBP'
             name = 'British Pound'
 
-        currency = CurrencyService.create_currency(workspace, Data())
+        currency = CurrencyService.create_currency(workspace.id, Data())
         self.assertEqual(currency.symbol, 'GBP')
         self.assertEqual(currency.name, 'British Pound')
-        self.assertEqual(currency.workspace, workspace)
+        self.assertEqual(currency.workspace_id, workspace.id)
 
     def test_create_duplicate_currency_fails(self):
         """Test that creating duplicate currency symbol raises CurrencyDuplicateSymbolError."""
@@ -256,14 +256,14 @@ class TestCurrencyService(TestCase):
             name = 'Polish Zloty'
 
         with self.assertRaises(CurrencyDuplicateSymbolError):
-            CurrencyService.create_currency(workspace, Data())
+            CurrencyService.create_currency(workspace.id, Data())
 
     def test_delete_currency(self):
         """Test deleting a currency."""
         workspace = WorkspaceFactory()
         usd = Currency.objects.get(workspace=workspace, symbol='USD')
 
-        CurrencyService.delete_currency(usd.id, workspace)
+        CurrencyService.delete_currency(usd.id, workspace.id)
 
         self.assertFalse(Currency.objects.filter(id=usd.id).exists())
 

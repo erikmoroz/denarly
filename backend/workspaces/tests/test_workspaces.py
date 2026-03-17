@@ -694,6 +694,18 @@ class TestCreateWorkspace(APIClientMixin, TestCase):
         self.post('/api/workspaces/', payload)
         self.assertStatus(401)
 
+    def test_create_workspace_with_blank_name_fails(self):
+        """Test that creating a workspace with blank name returns 422."""
+        payload = {'name': '   '}
+        self.post('/api/workspaces/', payload, **self.auth_headers())
+        self.assertStatus(422)
+
+    def test_create_workspace_with_empty_name_fails(self):
+        """Test that creating a workspace with empty name returns 422."""
+        payload = {'name': ''}
+        self.post('/api/workspaces/', payload, **self.auth_headers())
+        self.assertStatus(422)
+
 
 # =============================================================================
 # Delete Workspace Tests
@@ -777,6 +789,17 @@ class TestDeleteWorkspace(APIClientMixin, AuthMixin, TestCase):
         # Now single_ws_user only has self.workspace — deleting it should fail
         self.delete(f'/api/workspaces/{self.workspace.id}', **headers)
         self.assertStatus(400)
+
+    def test_delete_workspace_where_member_has_no_other_workspace_returns_400(self):
+        """Test that deleting a workspace where a member has no other workspace returns 400."""
+        # Create a member who only belongs to second_workspace
+        sole_member = UserFactory(current_workspace=self.second_workspace)
+        WorkspaceMemberFactory(workspace=self.second_workspace, user=sole_member, role='member')
+        # sole_member has no other workspace — deletion must be blocked
+        self.delete(f'/api/workspaces/{self.second_workspace.id}', **self.auth_headers())
+        self.assertStatus(400)
+        # Workspace must still exist
+        self.assertTrue(Workspace.objects.filter(id=self.second_workspace.id).exists())
 
 
 # =============================================================================

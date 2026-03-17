@@ -29,7 +29,11 @@ class CategoryService:
 
     @staticmethod
     def list(workspace_id: int, budget_period_id: int | None = None, current_date=None) -> list[Category]:
-        """List categories for a workspace, optionally filtered by period or date."""
+        """List categories for a workspace, optionally filtered by period or date.
+
+        Returns an empty list (not 404) when budget_period_id does not belong to
+        the workspace. This prevents leaking whether a period ID exists elsewhere.
+        """
         from budget_periods.models import BudgetPeriod
 
         if current_date and not budget_period_id:

@@ -117,28 +117,28 @@ class CurrencyService:
         return list(Currency.objects.filter(workspace_id=workspace_id))
 
     @staticmethod
-    def get_currency(currency_id: int, workspace: Workspace) -> Currency | None:
+    def get_currency(currency_id: int, workspace_id: int) -> Currency | None:
         """Get a currency by ID within a workspace."""
-        return Currency.objects.filter(id=currency_id, workspace=workspace).first()
+        return Currency.objects.filter(id=currency_id, workspace_id=workspace_id).first()
 
     @staticmethod
     @db_transaction.atomic
-    def create_currency(workspace: Workspace, data) -> Currency:
+    def create_currency(workspace_id: int, data) -> Currency:
         """Create a new currency for a workspace."""
-        if Currency.objects.filter(workspace=workspace, symbol=data.symbol).exists():
+        if Currency.objects.filter(workspace_id=workspace_id, symbol=data.symbol).exists():
             raise CurrencyDuplicateSymbolError(data.symbol)
 
         return Currency.objects.create(
-            workspace=workspace,
+            workspace_id=workspace_id,
             name=data.name,
             symbol=data.symbol,
         )
 
     @staticmethod
     @db_transaction.atomic
-    def delete_currency(currency_id: int, workspace: Workspace) -> None:
+    def delete_currency(currency_id: int, workspace_id: int) -> None:
         """Delete a currency from a workspace."""
-        currency = CurrencyService.get_currency(currency_id, workspace)
+        currency = CurrencyService.get_currency(currency_id, workspace_id)
         if not currency:
             raise CurrencyNotFoundError()
         currency.delete()

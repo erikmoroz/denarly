@@ -44,7 +44,7 @@ class BudgetService:
         if not category:
             raise BudgetCategoryNotFoundError()
 
-        currency = resolve_currency(workspace, data.currency)
+        currency = resolve_currency(workspace.id, data.currency)
         if not currency:
             raise BudgetCurrencyNotFoundError(data.currency)
 
