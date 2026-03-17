@@ -225,7 +225,7 @@ class TestCreateBudgetAccount(BudgetAccountTestCase):
         )
 
         self.assertStatus(400)
-        self.assertIn('already exists', data['error'].lower())
+        self.assertIn('already exists', data['detail'].lower())
 
     def test_create_requires_owner_or_admin_role(self):
         """Test creating account requires owner or admin role."""
