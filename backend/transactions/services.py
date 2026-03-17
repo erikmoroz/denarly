@@ -1,24 +1,30 @@
 """Business logic for the transactions app."""
 
+from __future__ import annotations
+
 from decimal import Decimal
 
 from django.db import transaction as db_transaction
-from ninja.errors import HttpError
 
 from budget_periods.models import BudgetPeriod
 from categories.models import Category
-from common.permissions import require_role
 from common.services.base import get_or_create_period_balance, get_workspace_period, resolve_currency
+from transactions.exceptions import (
+    TransactionCategoryNotFoundError,
+    TransactionCurrencyNotFoundError,
+    TransactionImportError,
+    TransactionNotFoundError,
+    TransactionPeriodNotFoundError,
+)
 from transactions.models import Transaction
 from transactions.schemas import TransactionCreate, TransactionImport
-from workspaces.models import WRITE_ROLES
 
 
 class TransactionService:
     @staticmethod
-    def get_transaction(transaction_id: int, workspace_id: int) -> Transaction | None:
+    def get_transaction(transaction_id: int, workspace_id: int) -> Transaction:
         """Get a transaction and verify it belongs to the workspace."""
-        return (
+        trans = (
             Transaction.objects.select_related('category', 'budget_period__budget_account', 'currency')
             .filter(
                 id=transaction_id,
@@ -26,6 +32,9 @@ class TransactionService:
             )
             .first()
         )
+        if not trans:
+            raise TransactionNotFoundError()
+        return trans
 
     @staticmethod
     def update_period_balance(period_id: int, currency, trans_type: str, amount: Decimal, operation: str) -> None:
@@ -48,12 +57,12 @@ class TransactionService:
         balance.save()
 
     @staticmethod
-    def _resolve_period(workspace, date, period_id: int | None):
-        """Return the resolved period_id, raising HttpError when not found."""
+    def _resolve_period(workspace, date, period_id: int | None) -> int:
+        """Return the resolved period_id, raising exception when not found."""
         if period_id:
             period = get_workspace_period(period_id, workspace.id)
             if not period:
-                raise HttpError(404, 'Budget period not found')
+                raise TransactionPeriodNotFoundError('Budget period not found')
             return period_id
         period = (
             BudgetPeriod.objects.select_related('budget_account')
@@ -65,27 +74,78 @@ class TransactionService:
             .first()
         )
         if not period:
-            raise HttpError(400, 'No active budget period for the transaction date')
+            raise TransactionPeriodNotFoundError()
         return period.id
 
     @staticmethod
     def _validate_category(category_id: int | None, period_id: int) -> None:
-        """Raise HttpError if category does not belong to the period."""
+        """Raise exception if category does not belong to the period."""
         if not category_id:
             return
         category = Category.objects.filter(id=category_id, budget_period_id=period_id).first()
         if not category:
-            raise HttpError(400, 'Category not found or does not belong to the assigned budget period')
+            raise TransactionCategoryNotFoundError()
+
+    @staticmethod
+    def list(
+        workspace_id: int,
+        budget_period_id: int | None = None,
+        current_date=None,
+        type: list | None = None,
+        category_id: list | None = None,
+        search: str | None = None,
+        start_date=None,
+        end_date=None,
+        amount_gte: Decimal | None = None,
+        amount_lte: Decimal | None = None,
+        ordering: str | None = None,
+    ) -> list[Transaction]:
+        """List transactions for a workspace with optional filters."""
+        from budget_periods.models import BudgetPeriod
+
+        queryset = Transaction.objects.select_related('category').for_workspace(workspace_id)
+
+        if budget_period_id:
+            queryset = queryset.filter(budget_period_id=budget_period_id)
+        elif current_date:
+            period = (
+                BudgetPeriod.objects.select_related('budget_account')
+                .filter(
+                    budget_account__workspace_id=workspace_id,
+                    start_date__lte=current_date,
+                    end_date__gte=current_date,
+                )
+                .first()
+            )
+            if not period:
+                raise TransactionPeriodNotFoundError('No budget period found for the given date')
+            queryset = queryset.filter(budget_period_id=period.id)
+
+        if type:
+            queryset = queryset.filter(type__in=type)
+        if category_id:
+            queryset = queryset.filter(category_id__in=category_id)
+        if search:
+            queryset = queryset.filter(description__icontains=search)
+        if start_date:
+            queryset = queryset.filter(date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(date__lte=end_date)
+        if amount_gte is not None:
+            queryset = queryset.filter(amount__gte=amount_gte)
+        if amount_lte is not None:
+            queryset = queryset.filter(amount__lte=amount_lte)
+
+        sort_order = ordering or '-date'
+        return list(queryset.order_by(sort_order, '-created_at'))
 
     @staticmethod
     @db_transaction.atomic
     def create(user, workspace, data: TransactionCreate) -> Transaction:
         """Create a transaction and update the period balance."""
-        require_role(user, workspace.id, WRITE_ROLES)
-
         currency = resolve_currency(workspace, data.currency)
         if not currency:
-            raise HttpError(400, f'Currency {data.currency} not found in workspace')
+            raise TransactionCurrencyNotFoundError(data.currency)
 
         category_id = None if data.type == 'income' else data.category_id
         period_id = TransactionService._resolve_period(workspace, data.date, data.budget_period_id)
@@ -109,19 +169,14 @@ class TransactionService:
     @db_transaction.atomic
     def update(user, workspace, transaction_id: int, data: TransactionCreate) -> Transaction:
         """Update a transaction, reversing the old balance and applying the new one."""
-        require_role(user, workspace.id, WRITE_ROLES)
-
         trans = TransactionService.get_transaction(transaction_id, workspace.id)
-        if not trans:
-            raise HttpError(404, 'Transaction not found')
 
         new_currency = resolve_currency(workspace, data.currency)
         if not new_currency:
-            raise HttpError(400, f'Currency {data.currency} not found in workspace')
+            raise TransactionCurrencyNotFoundError(data.currency)
 
         category_id = None if data.type == 'income' else data.category_id
 
-        # Revert the old balance before changing anything
         if trans.budget_period_id:
             TransactionService.update_period_balance(
                 trans.budget_period_id, trans.currency, trans.type, trans.amount, 'subtract'
@@ -147,11 +202,7 @@ class TransactionService:
     @db_transaction.atomic
     def delete(user, workspace, transaction_id: int) -> None:
         """Delete a transaction and revert the period balance."""
-        require_role(user, workspace.id, WRITE_ROLES)
-
         trans = TransactionService.get_transaction(transaction_id, workspace.id)
-        if not trans:
-            raise HttpError(404, 'Transaction not found')
 
         if trans.budget_period_id:
             TransactionService.update_period_balance(
@@ -164,7 +215,7 @@ class TransactionService:
         """Return serialisable transaction data for a period."""
         period = get_workspace_period(period_id, workspace.id)
         if not period:
-            raise HttpError(404, 'Budget period not found')
+            raise TransactionPeriodNotFoundError('Budget period not found')
 
         queryset = Transaction.objects.select_related('category', 'currency').filter(budget_period_id=period_id)
         if trans_type:
@@ -186,13 +237,10 @@ class TransactionService:
     @db_transaction.atomic
     def import_data(user, workspace, period_id: int, data: list) -> int:
         """Bulk-create transactions from parsed JSON data. Returns count of created records."""
-        require_role(user, workspace.id, WRITE_ROLES)
-
         period = get_workspace_period(period_id, workspace.id)
         if not period:
-            raise HttpError(404, 'Budget period not found')
+            raise TransactionPeriodNotFoundError('Budget period not found')
 
-        # Pre-load currencies for this workspace
         currency_map = {c.symbol: c for c in workspace.currencies.all()}
 
         new_transactions = []
@@ -200,23 +248,20 @@ class TransactionService:
             try:
                 import_item = TransactionImport(**item)
             except Exception as e:
-                raise HttpError(400, f'Invalid data format: {e}')
+                raise TransactionImportError(f'Invalid data format: {e}')
 
             currency = currency_map.get(import_item.currency)
             if not currency:
-                raise HttpError(400, f'Currency {import_item.currency} not found in workspace')
+                raise TransactionCurrencyNotFoundError(import_item.currency)
 
-            if import_item.type == 'income':
-                category_id = None
-            else:
-                category_id = None
-                if import_item.category_name:
-                    category = Category.objects.filter(
-                        name=import_item.category_name,
-                        budget_period_id=period_id,
-                    ).first()
-                    if category:
-                        category_id = category.id
+            category_id = None
+            if import_item.type != 'income' and import_item.category_name:
+                category = Category.objects.filter(
+                    name=import_item.category_name,
+                    budget_period_id=period_id,
+                ).first()
+                if category:
+                    category_id = category.id
 
             new_transactions.append(
                 Transaction(

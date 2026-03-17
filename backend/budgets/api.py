@@ -1,62 +1,51 @@
 """Django-Ninja API endpoints for budgets app."""
 
+from django.http import HttpRequest
 from ninja import Query, Router
 
 from budgets.schemas import BudgetCreate, BudgetOut, BudgetUpdate
 from budgets.services import BudgetService
 from common.auth import WorkspaceJWTAuth
+from common.permissions import require_role
+from workspaces.models import WRITE_ROLES
 
 router = Router(tags=['Budgets'])
 
 
-# =============================================================================
-# Budget Endpoints
-# =============================================================================
-
-
 @router.get('', response=list[BudgetOut], auth=WorkspaceJWTAuth())
 def list_budgets(
-    request,
+    request: HttpRequest,
     budget_period_id: int | None = Query(None),
 ):
     """List budgets for the current workspace, optionally filtered by period."""
     workspace_id = request.auth.current_workspace_id
-
-    from budgets.models import Budget
-
-    queryset = Budget.objects.select_related('category').for_workspace(workspace_id)
-
-    if budget_period_id:
-        queryset = queryset.filter(budget_period_id=budget_period_id)
-
-    return queryset
+    return BudgetService.list(workspace_id, budget_period_id)
 
 
-@router.post('', response={201: BudgetOut, 400: dict}, auth=WorkspaceJWTAuth())
-def create_budget(request, data: BudgetCreate):
+@router.post('', response={201: BudgetOut}, auth=WorkspaceJWTAuth())
+def create_budget(request: HttpRequest, data: BudgetCreate):
     """Create a new budget entry."""
     user = request.auth
     workspace = user.current_workspace
-
+    require_role(user, workspace.id, WRITE_ROLES)
     budget = BudgetService.create(user, workspace, data)
     return 201, budget
 
 
 @router.put('/{budget_id}', response=BudgetOut, auth=WorkspaceJWTAuth())
-def update_budget(request, budget_id: int, data: BudgetUpdate):
+def update_budget(request: HttpRequest, budget_id: int, data: BudgetUpdate):
     """Update a budget entry."""
     user = request.auth
     workspace = user.current_workspace
-
-    budget = BudgetService.update(user, workspace, budget_id, data)
-    return budget
+    require_role(user, workspace.id, WRITE_ROLES)
+    return BudgetService.update(user, workspace, budget_id, data)
 
 
 @router.delete('/{budget_id}', response={204: None}, auth=WorkspaceJWTAuth())
-def delete_budget(request, budget_id: int):
+def delete_budget(request: HttpRequest, budget_id: int):
     """Delete a budget entry."""
     user = request.auth
     workspace = user.current_workspace
-
+    require_role(user, workspace.id, WRITE_ROLES)
     BudgetService.delete(user, workspace, budget_id)
     return 204, None

@@ -3,7 +3,6 @@
 from decimal import Decimal
 
 from budget_periods.models import BudgetPeriod
-from common.permissions import require_role  # noqa: F401 — re-exported for convenience
 from period_balances.models import PeriodBalance
 
 
