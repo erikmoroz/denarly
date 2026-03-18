@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { HiX, HiTrash, HiExclamationTriangle } from 'react-icons/hi2'
-import { HiX as HiXSolid } from 'react-icons/hi'
-import { useQueryClient } from '@tanstack/react-query'
+import { HiTrash, HiExclamationTriangle } from 'react-icons/hi2'
+import { HiX } from 'react-icons/hi'
 import { useWorkspace } from '../../contexts/WorkspaceContext'
-import { workspacesApi } from '../../api/client'
 import toast from 'react-hot-toast'
 
 interface WorkspaceSettingsPanelProps {
@@ -12,8 +10,7 @@ interface WorkspaceSettingsPanelProps {
 }
 
 export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSettingsPanelProps) {
-  const { workspace, workspaces, deleteWorkspace } = useWorkspace()
-  const queryClient = useQueryClient()
+  const { workspace, workspaces, deleteWorkspace, updateWorkspace } = useWorkspace()
   const [newName, setNewName] = useState(workspace?.name || '')
   const [isSaving, setIsSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -27,6 +24,21 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
     }
   }, [workspace?.id, workspace?.name])
 
+  useEffect(() => {
+    if (!isOpen) {
+      setShowDeleteConfirm(false)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   const isOwner = workspace?.user_role === 'owner'
   const canDelete = isOwner && workspaces.length > 1
 
@@ -34,9 +46,7 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
     if (!newName.trim() || newName === workspace?.name) return
     setIsSaving(true)
     try {
-      await workspacesApi.update({ name: newName.trim() })
-      await queryClient.invalidateQueries({ queryKey: ['workspace-current'] })
-      await queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+      await updateWorkspace({ name: newName.trim() })
       toast.success('Workspace name updated')
       onClose()
     } catch {
@@ -92,6 +102,7 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     disabled={!isOwner}
+                    maxLength={100}
                     className="flex-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed px-3 py-2 border"
                   />
                   {isOwner && (
@@ -151,11 +162,6 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
                           <p className="text-sm text-red-700 mt-1">
                             This will permanently delete all data in this workspace, including all transactions, categories, and budget periods. This action cannot be undone.
                           </p>
-                          {!canDelete && (
-                            <p className="text-sm text-red-600 mt-2 font-medium">
-                              You must have at least one workspace. Create another workspace before deleting this one.
-                            </p>
-                          )}
 
                           <div className="flex gap-2 mt-3">
                             <button

@@ -1,9 +1,9 @@
 """Custom exceptions for users app."""
 
-from common.exceptions import AuthenticationError, NotFoundError, ValidationError
+from common.exceptions import NotFoundError, ValidationError
 
 
-class UserInvalidPasswordError(AuthenticationError):
+class UserInvalidPasswordError(ValidationError):
     default_message = 'Invalid current password'
 
     def __init__(self, message: str | None = None):

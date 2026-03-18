@@ -121,6 +121,7 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Workspace name"
+                maxLength={100}
                 className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoFocus
                 onKeyDown={(e) => {

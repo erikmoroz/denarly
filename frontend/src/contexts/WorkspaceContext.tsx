@@ -2,19 +2,20 @@ import { createContext, useContext, type ReactNode } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 import { workspacesApi, workspaceMembersApi } from '../api/client';
-import type { Workspace, WorkspaceMember } from '../types';
+import type { Workspace, WorkspaceMember, Role } from '../types';
 
 interface WorkspaceContextValue {
   workspace: Workspace | null;
   workspaces: Workspace[];
   currentMembership: WorkspaceMember | null;
-  userRole: string | null;
+  userRole: Role | null;
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;
   switchWorkspace: (id: number) => Promise<void>;
   createWorkspace: (name: string) => Promise<Workspace>;
   deleteWorkspace: (id: number) => Promise<void>;
+  updateWorkspace: (data: { name: string }) => Promise<Workspace>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | undefined>(undefined);
@@ -58,11 +59,25 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const currentMembership = members?.find(m => m.user_id === user?.id) || null;
   const userRole = currentMembership?.role || null;
 
+  const invalidateWorkspaceQueries = () => {
+    queryClient.removeQueries({ queryKey: ['workspace-members'] });
+    queryClient.invalidateQueries({ queryKey: ['workspace-current'] });
+    queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+    queryClient.invalidateQueries({ queryKey: ['budget-accounts'] });
+    queryClient.invalidateQueries({ queryKey: ['budget-periods'] });
+    queryClient.invalidateQueries({ queryKey: ['categories'] });
+    queryClient.invalidateQueries({ queryKey: ['budgets'] });
+    queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['planned-transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['currency-exchanges'] });
+    queryClient.invalidateQueries({ queryKey: ['period-balances'] });
+    queryClient.invalidateQueries({ queryKey: ['reports'] });
+  };
+
   const switchMutation = useMutation({
     mutationFn: (workspaceId: number) => workspacesApi.switch(workspaceId),
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['workspace-members'] });
-      queryClient.invalidateQueries();
+      invalidateWorkspaceQueries();
       localStorage.removeItem('monie_selected_account');
     },
   });
@@ -70,8 +85,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const createMutation = useMutation({
     mutationFn: (name: string) => workspacesApi.create({ name }),
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['workspace-members'] });
-      queryClient.invalidateQueries();
+      invalidateWorkspaceQueries();
       localStorage.removeItem('monie_selected_account');
     },
   });
@@ -79,9 +93,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const deleteMutation = useMutation({
     mutationFn: (workspaceId: number) => workspacesApi.delete(workspaceId),
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['workspace-members'] });
-      queryClient.invalidateQueries();
+      invalidateWorkspaceQueries();
       localStorage.removeItem('monie_selected_account');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: { name: string }) => workspacesApi.update(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-current'] });
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
     },
   });
 
@@ -96,6 +117,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const deleteWorkspace = async (id: number) => {
     await deleteMutation.mutateAsync(id);
+  };
+
+  const updateWorkspace = async (data: { name: string }): Promise<Workspace> => {
+    return await updateMutation.mutateAsync(data);
   };
 
   const refetch = () => {
@@ -117,6 +142,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         switchWorkspace,
         createWorkspace,
         deleteWorkspace,
+        updateWorkspace,
       }}
     >
       {children}

@@ -73,7 +73,7 @@ class TestPasswordChange(AuthTestCase):
         self.assertStatus(200)
 
     def test_change_password_wrong_current(self):
-        """Test password change with incorrect current password."""
+        """Test password change with incorrect current password returns 400 (validation error)."""
         token = self.register_and_login('wrong_current@example.com', 'correctpassword', 'Password Test')
 
         self.put(
@@ -84,7 +84,7 @@ class TestPasswordChange(AuthTestCase):
             },
             **self.auth_headers(token),
         )
-        self.assertStatus(401)
+        self.assertStatus(400)
 
     def test_change_password_without_auth(self):
         """Test that password change requires authentication."""
