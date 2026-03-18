@@ -72,7 +72,7 @@ def validate_workspace_access(workspace_id: int, user) -> Workspace:
         user=user,
     ).first()
     if not member:
-        raise HttpError(403, 'Access denied to this workspace')
+        raise HttpError(404, 'Workspace not found')
 
     return workspace
 
@@ -111,17 +111,22 @@ def create_workspace_endpoint(request: HttpRequest, data: WorkspaceCreate):
 def get_current_workspace_info(request: HttpRequest):
     """Get current workspace details."""
     user = request.auth
-    workspace = user.current_workspace
-    member = WorkspaceMember.objects.filter(workspace_id=workspace.id, user=user).first()
-    workspace.user_role = member.role if member else None
+    workspace_id = user.current_workspace_id
+    try:
+        member = WorkspaceMember.objects.select_related('workspace').get(workspace_id=workspace_id, user=user)
+    except WorkspaceMember.DoesNotExist:
+        raise HttpError(403, 'Not a member of this workspace')
+    workspace = member.workspace
+    workspace.user_role = member.role
     return workspace
 
 
 @router.put('/current', response=WorkspaceOut, auth=WorkspaceJWTAuth())
 def update_current_workspace(request: HttpRequest, data: WorkspaceUpdate):
     """Update current workspace (requires owner or admin role)."""
-    workspace = request.auth.current_workspace
-    user_role = require_role(request.auth, workspace.id, ADMIN_ROLES)
+    workspace_id = request.auth.current_workspace_id
+    user_role = require_role(request.auth, workspace_id, ADMIN_ROLES)
+    workspace = Workspace.objects.get(id=workspace_id)
 
     if data.name is not None:
         workspace.name = data.name
@@ -134,10 +139,7 @@ def update_current_workspace(request: HttpRequest, data: WorkspaceUpdate):
 @router.delete('/{workspace_id}', response={204: None}, auth=JWTAuth())
 def delete_workspace_endpoint(request: HttpRequest, workspace_id: int):
     """Delete a workspace. Only the owner can delete it."""
-    workspace = Workspace.objects.filter(id=workspace_id).first()
-    if not workspace:
-        raise HttpError(404, 'Workspace not found')
-
+    workspace = validate_workspace_access(workspace_id, request.auth)
     require_role(request.auth, workspace_id, [Role.OWNER])
     WorkspaceService.delete_workspace(user=request.auth, workspace=workspace)
     return 204, None

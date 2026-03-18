@@ -96,6 +96,10 @@ class WorkspaceService:
         Transaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
         PlannedTransaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
         CurrencyExchange.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
+        CurrencyExchange.objects.filter(
+            budget_period__isnull=True,
+            from_currency__workspace_id=workspace_id,
+        ).delete()
 
         BudgetAccount.objects.filter(workspace_id=workspace_id).delete()
 

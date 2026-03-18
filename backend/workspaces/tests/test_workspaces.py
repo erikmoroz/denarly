@@ -104,6 +104,17 @@ class TestGetCurrentWorkspace(WorkspaceTestCase):
         self.get('/api/workspaces/current')
         self.assertStatus(401)
 
+    def test_get_current_workspace_returns_403_when_not_a_member(self):
+        """A user with current_workspace_id set but no membership should get 403."""
+        from common.auth import create_access_token
+
+        user = UserFactory(current_workspace=self.workspace)
+        token = create_access_token(user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        self.get('/api/workspaces/current', **headers)
+        self.assertStatus(403)
+
 
 # =============================================================================
 # Update Current Workspace Tests
@@ -762,6 +773,17 @@ class TestDeleteWorkspace(APIClientMixin, AuthMixin, TestCase):
         self.delete('/api/workspaces/99999', **self.auth_headers())
         self.assertStatus(404)
 
+    def test_delete_non_member_returns_404(self):
+        """Test that deleting a workspace where user is not a member returns 404."""
+        from common.auth import create_access_token
+
+        non_member = UserFactory()
+        token = create_access_token(non_member)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        self.delete(f'/api/workspaces/{self.second_workspace.id}', **headers)
+        self.assertStatus(404)
+
     def test_delete_workspace_without_auth_fails(self):
         """Test that deleting workspace without authentication fails."""
         self.delete(f'/api/workspaces/{self.second_workspace.id}')
@@ -833,3 +855,22 @@ class TestLeaveWorkspaceCurrentWorkspace(WorkspaceTestCase):
         from common.auth import create_access_token
 
         return create_access_token(user)
+
+
+class TestWorkspaceJWTAuth400(APIClientMixin, TestCase):
+    """Tests for WorkspaceJWTAuth returning 400 when no workspace is active."""
+
+    def setUp(self):
+        """Set up test data."""
+        APIClientMixin.setUp(self)
+
+    def test_workspace_scoped_endpoint_returns_400_without_active_workspace(self):
+        """A valid JWT with no current_workspace_id should get 400 on workspace-scoped endpoints."""
+        from common.auth import create_access_token
+        from common.tests.factories import UserFactory
+
+        user = UserFactory(current_workspace=None)
+        token = create_access_token(user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+        self.get('/api/workspaces/current', **headers)
+        self.assertStatus(400)

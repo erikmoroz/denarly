@@ -207,6 +207,45 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
         self.assertEqual(owner.current_workspace, fallback)
         self.assertEqual(member.current_workspace, fallback)
 
+    def test_deletes_currency_exchange_with_null_budget_period(self):
+        """Orphaned CurrencyExchange rows (budget_period=NULL) are deleted."""
+        from datetime import date
+
+        user = UserFactory()
+        WorkspaceService.create_workspace(user=user, name='Fallback', create_demo=False)
+        workspace = WorkspaceService.create_workspace(user=user, name='Test Workspace', create_demo=False)
+
+        account = BudgetAccount.objects.filter(workspace=workspace).first()
+        pln = Currency.objects.get(workspace=workspace, symbol='PLN')
+        period = BudgetPeriod.objects.create(
+            budget_account=account,
+            name='Jan',
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 1, 31),
+            created_by=user,
+            updated_by=user,
+        )
+
+        exchange = CurrencyExchange.objects.create(
+            budget_period=period,
+            date=date(2025, 1, 10),
+            description='Test Exchange',
+            from_currency=pln,
+            from_amount=100,
+            to_currency=pln,
+            to_amount=25,
+            created_by=user,
+            updated_by=user,
+        )
+        exchange_id = exchange.id
+
+        exchange.budget_period = None
+        exchange.save()
+
+        WorkspaceService.delete_workspace(user=user, workspace=workspace)
+
+        self.assertFalse(CurrencyExchange.objects.filter(id=exchange_id).exists())
+
 
 class TestCurrencyService(TestCase):
     """Tests for CurrencyService."""

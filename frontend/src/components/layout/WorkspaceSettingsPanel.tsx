@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { HiX, HiTrash, HiExclamationTriangle } from 'react-icons/hi2'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWorkspace } from '../../contexts/WorkspaceContext'
@@ -17,10 +17,14 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
   const [isSaving, setIsSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const prevWorkspaceIdRef = useRef(workspace?.id)
 
   useEffect(() => {
-    setNewName(workspace?.name || '')
-  }, [workspace?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (workspace?.id !== prevWorkspaceIdRef.current) {
+      setNewName(workspace?.name || '')
+      prevWorkspaceIdRef.current = workspace?.id
+    }
+  }, [workspace?.id, workspace?.name])
 
   const isOwner = workspace?.user_role === 'owner'
   const canDelete = isOwner && workspaces.length > 1
