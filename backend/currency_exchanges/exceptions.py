@@ -17,11 +17,6 @@ class CurrencyExchangePeriodNotFoundError(NotFoundError):
         super().__init__(message, code='period_not_found')
 
 
-class CurrencyExchangeCurrencyNotFoundError(ValidationError):
-    def __init__(self, currency: str):
-        super().__init__(f'Currency {currency} not found in workspace', code='currency_not_found')
-
-
 class CurrencyExchangeImportError(ValidationError):
     def __init__(self, message: str):
         super().__init__(message, code='import_error')

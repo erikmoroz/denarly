@@ -93,6 +93,27 @@ class WorkspaceService:
         )
         next_ws_map = {row['user_id']: row['next_ws_id'] for row in next_ws_per_user}
 
+        # -----------------------------------------------------------------------
+        # Deletion order matters due to FK constraints:
+        #
+        # 1. Transaction, PlannedTransaction, CurrencyExchange
+        #    - These have currency FK with on_delete=PROTECT, so they must be
+        #      deleted before their Currency (which CASCADE-deletes with Workspace).
+        #    - They also have budget_period FK (SET_NULL) — safe, but explicit
+        #      deletion avoids orphaned rows.
+        #
+        # 2. CurrencyExchange with budget_period=NULL
+        #    - Orphaned exchanges whose period was already deleted; matched by
+        #      from_currency__workspace_id instead.
+        #
+        # 3. BudgetAccount
+        #    - CASCADE deletes: BudgetPeriod → Category, Budget, PeriodBalance
+        #    - BudgetAccount.default_currency has PROTECT, but currencies still
+        #      exist at this point (deleted when Workspace.delete() cascades).
+        #
+        # 4. Workspace.delete()
+        #    - CASCADE deletes: Currency, WorkspaceMember
+        # -----------------------------------------------------------------------
         Transaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
         PlannedTransaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
         CurrencyExchange.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()

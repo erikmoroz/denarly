@@ -104,8 +104,8 @@ class TestGetCurrentWorkspace(WorkspaceTestCase):
         self.get('/api/workspaces/current')
         self.assertStatus(401)
 
-    def test_get_current_workspace_returns_403_when_not_a_member(self):
-        """A user with current_workspace_id set but no membership should get 403."""
+    def test_get_current_workspace_returns_404_when_not_a_member(self):
+        """A user with current_workspace_id set but no membership should get 404."""
         from common.auth import create_access_token
 
         user = UserFactory(current_workspace=self.workspace)
@@ -113,7 +113,7 @@ class TestGetCurrentWorkspace(WorkspaceTestCase):
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
 
         self.get('/api/workspaces/current', **headers)
-        self.assertStatus(403)
+        self.assertStatus(404)
 
 
 # =============================================================================
@@ -200,7 +200,7 @@ class TestSwitchWorkspace(WorkspaceTestCase):
         forbidden_workspace = WorkspaceFactory(name='Forbidden Workspace')
 
         self.post(f'/api/workspaces/{forbidden_workspace.id}/switch', {}, **self.auth_headers())
-        self.assertStatus(403)
+        self.assertStatus(404)
 
     def test_switch_workspace_without_auth_fails(self):
         """Test that switching workspace without authentication fails."""
@@ -239,7 +239,7 @@ class TestListWorkspaceMembers(WorkspaceTestCase):
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
 
         self.get(f'/api/workspaces/{self.workspace.id}/members', **headers)
-        self.assertStatus(403)
+        self.assertStatus(404)
 
     def test_list_members_without_auth_fails(self):
         """Test that listing members without authentication fails."""

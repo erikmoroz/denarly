@@ -6,11 +6,11 @@ from django.db import transaction as db_transaction
 
 from budget_periods.models import BudgetPeriod
 from categories.models import Category
+from common.exceptions import CurrencyNotFoundInWorkspaceError
 from common.services.base import get_or_create_period_balance, get_workspace_period, resolve_currency
 from planned_transactions.exceptions import (
     PlannedTransactionAlreadyExecutedError,
     PlannedTransactionCategoryNotFoundError,
-    PlannedTransactionCurrencyNotFoundError,
     PlannedTransactionImportError,
     PlannedTransactionNoActivePeriodError,
     PlannedTransactionNotFoundError,
@@ -72,7 +72,7 @@ class PlannedTransactionService:
         """Create a planned transaction."""
         currency = resolve_currency(workspace_id, data.currency)
         if not currency:
-            raise PlannedTransactionCurrencyNotFoundError(data.currency)
+            raise CurrencyNotFoundInWorkspaceError(data.currency)
 
         period_id = PlannedTransactionService._resolve_period(workspace_id, data.planned_date, data.budget_period_id)
         PlannedTransactionService._validate_category(data.category_id, period_id)
@@ -96,7 +96,7 @@ class PlannedTransactionService:
 
         currency = resolve_currency(workspace_id, data.currency)
         if not currency:
-            raise PlannedTransactionCurrencyNotFoundError(data.currency)
+            raise CurrencyNotFoundInWorkspaceError(data.currency)
 
         period_id = PlannedTransactionService._resolve_period(workspace_id, data.planned_date, data.budget_period_id)
         PlannedTransactionService._validate_category(data.category_id, period_id)
@@ -213,7 +213,7 @@ class PlannedTransactionService:
 
             currency = currency_map.get(import_item.currency)
             if not currency:
-                raise PlannedTransactionCurrencyNotFoundError(import_item.currency)
+                raise CurrencyNotFoundInWorkspaceError(import_item.currency)
 
             category_id = None
             if import_item.category_name:

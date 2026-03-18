@@ -61,7 +61,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const switchMutation = useMutation({
     mutationFn: (workspaceId: number) => workspacesApi.switch(workspaceId),
     onSuccess: () => {
-      queryClient.clear();
+      queryClient.removeQueries({ queryKey: ['workspace-members'] });
+      queryClient.invalidateQueries();
       localStorage.removeItem('monie_selected_account');
     },
   });
@@ -69,7 +70,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const createMutation = useMutation({
     mutationFn: (name: string) => workspacesApi.create({ name }),
     onSuccess: () => {
-      queryClient.clear();
+      queryClient.removeQueries({ queryKey: ['workspace-members'] });
+      queryClient.invalidateQueries();
       localStorage.removeItem('monie_selected_account');
     },
   });
@@ -77,7 +79,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const deleteMutation = useMutation({
     mutationFn: (workspaceId: number) => workspacesApi.delete(workspaceId),
     onSuccess: () => {
-      queryClient.clear();
+      queryClient.removeQueries({ queryKey: ['workspace-members'] });
+      queryClient.invalidateQueries();
       localStorage.removeItem('monie_selected_account');
     },
   });

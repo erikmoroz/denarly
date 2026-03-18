@@ -5,9 +5,9 @@ from __future__ import annotations
 from django.db import transaction as db_transaction
 
 from budget_periods.models import BudgetPeriod
+from common.exceptions import CurrencyNotFoundInWorkspaceError
 from common.services.base import get_or_create_period_balance, get_workspace_period, resolve_currency
 from currency_exchanges.exceptions import (
-    CurrencyExchangeCurrencyNotFoundError,
     CurrencyExchangeImportError,
     CurrencyExchangeNotFoundError,
     CurrencyExchangePeriodNotFoundError,
@@ -73,11 +73,11 @@ class CurrencyExchangeService:
         """Create an exchange record and update period balances."""
         from_currency = resolve_currency(workspace_id, data.from_currency)
         if not from_currency:
-            raise CurrencyExchangeCurrencyNotFoundError(data.from_currency)
+            raise CurrencyNotFoundInWorkspaceError(data.from_currency)
 
         to_currency = resolve_currency(workspace_id, data.to_currency)
         if not to_currency:
-            raise CurrencyExchangeCurrencyNotFoundError(data.to_currency)
+            raise CurrencyNotFoundInWorkspaceError(data.to_currency)
 
         period_id = CurrencyExchangeService._find_period_for_date(workspace_id, data.date)
         exchange_rate = data.to_amount / data.from_amount
@@ -114,11 +114,11 @@ class CurrencyExchangeService:
 
         new_from_currency = resolve_currency(workspace_id, data.from_currency)
         if not new_from_currency:
-            raise CurrencyExchangeCurrencyNotFoundError(data.from_currency)
+            raise CurrencyNotFoundInWorkspaceError(data.from_currency)
 
         new_to_currency = resolve_currency(workspace_id, data.to_currency)
         if not new_to_currency:
-            raise CurrencyExchangeCurrencyNotFoundError(data.to_currency)
+            raise CurrencyNotFoundInWorkspaceError(data.to_currency)
 
         if exchange.budget_period_id:
             balance_from = get_or_create_period_balance(exchange.budget_period_id, exchange.from_currency)
@@ -217,11 +217,11 @@ class CurrencyExchangeService:
 
             from_currency = currency_map.get(import_item.from_currency)
             if not from_currency:
-                raise CurrencyExchangeCurrencyNotFoundError(import_item.from_currency)
+                raise CurrencyNotFoundInWorkspaceError(import_item.from_currency)
 
             to_currency = currency_map.get(import_item.to_currency)
             if not to_currency:
-                raise CurrencyExchangeCurrencyNotFoundError(import_item.to_currency)
+                raise CurrencyNotFoundInWorkspaceError(import_item.to_currency)
 
             exchange_rate = import_item.to_amount / import_item.from_amount
             new_exchanges.append(

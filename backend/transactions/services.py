@@ -8,10 +8,10 @@ from django.db import transaction as db_transaction
 
 from budget_periods.models import BudgetPeriod
 from categories.models import Category
+from common.exceptions import CurrencyNotFoundInWorkspaceError
 from common.services.base import get_or_create_period_balance, get_workspace_period, resolve_currency
 from transactions.exceptions import (
     TransactionCategoryNotFoundError,
-    TransactionCurrencyNotFoundError,
     TransactionImportError,
     TransactionNotFoundError,
     TransactionPeriodNotFoundError,
@@ -145,7 +145,7 @@ class TransactionService:
         """Create a transaction and update the period balance."""
         currency = resolve_currency(workspace_id, data.currency)
         if not currency:
-            raise TransactionCurrencyNotFoundError(data.currency)
+            raise CurrencyNotFoundInWorkspaceError(data.currency)
 
         category_id = None if data.type == 'income' else data.category_id
         period_id = TransactionService._resolve_period(workspace_id, data.date, data.budget_period_id)
@@ -173,7 +173,7 @@ class TransactionService:
 
         new_currency = resolve_currency(workspace_id, data.currency)
         if not new_currency:
-            raise TransactionCurrencyNotFoundError(data.currency)
+            raise CurrencyNotFoundInWorkspaceError(data.currency)
 
         category_id = None if data.type == 'income' else data.category_id
 
@@ -254,7 +254,7 @@ class TransactionService:
 
             currency = currency_map.get(import_item.currency)
             if not currency:
-                raise TransactionCurrencyNotFoundError(import_item.currency)
+                raise CurrencyNotFoundInWorkspaceError(import_item.currency)
 
             category_id = None
             if import_item.type != 'income' and import_item.category_name:

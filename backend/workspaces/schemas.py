@@ -69,12 +69,23 @@ class WorkspaceCreate(BaseModel):
 
 
 class WorkspaceMemberAdd(BaseModel):
-    """Request to add a new member to workspace with direct account creation."""
+    """Request to add a new member to workspace with direct account creation.
+
+    password is required when adding a user who does not yet exist in the system.
+    When adding an existing user, password is ignored.
+    """
 
     email: EmailStr
     password: str | None = Field(None, min_length=8, max_length=255)
     role: str = Field(..., pattern=r'^(admin|member|viewer)$')
     full_name: str | None = Field(None, max_length=100)
+
+    @field_validator('password')
+    @classmethod
+    def password_not_blank(cls, v):
+        if v is not None and not v.strip():
+            raise ValueError('Password cannot be blank')
+        return v
 
 
 class WorkspaceMemberRoleUpdate(BaseModel):

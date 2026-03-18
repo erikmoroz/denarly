@@ -27,6 +27,18 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  useEffect(() => {
+    if (!isOpen) return
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+        setIsCreating(false)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen])
+
   const handleSwitch = async (ws: Workspace) => {
     if (ws.id === workspace?.id) {
       setIsOpen(false)
@@ -113,7 +125,10 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleCreate()
-                  if (e.key === 'Escape') setIsCreating(false)
+                  if (e.key === 'Escape') {
+                    e.stopPropagation()
+                    setIsCreating(false)
+                  }
                 }}
               />
               <div className="flex gap-2 mt-2">

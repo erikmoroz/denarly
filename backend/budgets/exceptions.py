@@ -1,6 +1,5 @@
 """Custom exceptions for budgets app."""
 
-from budget_periods.exceptions import BudgetPeriodNotFoundError  # noqa: F401
 from common.exceptions import NotFoundError, ValidationError
 
 
@@ -16,8 +15,3 @@ class BudgetCategoryNotFoundError(ValidationError):
 
     def __init__(self, message: str | None = None):
         super().__init__(message, code='category_not_found')
-
-
-class BudgetCurrencyNotFoundError(ValidationError):
-    def __init__(self, currency: str):
-        super().__init__(f'Currency {currency} not found in workspace', code='currency_not_found')

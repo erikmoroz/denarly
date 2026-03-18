@@ -29,8 +29,22 @@ class NotFoundError(ServiceError):
     default_message = 'Not found'
 
 
+class AuthenticationError(ServiceError):
+    """Caller identity / credentials invalid. Maps to HTTP 401."""
+
+    http_status = 401
+    default_message = 'Authentication failed'
+
+
 class ValidationError(ServiceError):
     """Input fails domain validation. Maps to HTTP 400."""
 
     http_status = 400
     default_message = 'Validation error'
+
+
+class CurrencyNotFoundInWorkspaceError(ValidationError):
+    """Currency symbol not found in the target workspace."""
+
+    def __init__(self, currency: str):
+        super().__init__(f'Currency {currency} not found in workspace', code='currency_not_found')

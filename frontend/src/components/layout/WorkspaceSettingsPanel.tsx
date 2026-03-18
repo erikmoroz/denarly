@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { HiX, HiTrash, HiExclamationTriangle } from 'react-icons/hi2'
+import { HiX as HiXSolid } from 'react-icons/hi'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWorkspace } from '../../contexts/WorkspaceContext'
 import { workspacesApi } from '../../api/client'

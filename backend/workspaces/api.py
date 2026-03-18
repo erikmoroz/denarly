@@ -115,7 +115,7 @@ def get_current_workspace_info(request: HttpRequest):
     try:
         member = WorkspaceMember.objects.select_related('workspace').get(workspace_id=workspace_id, user=user)
     except WorkspaceMember.DoesNotExist:
-        raise HttpError(403, 'Not a member of this workspace')
+        raise HttpError(404, 'Workspace not found')
     workspace = member.workspace
     workspace.user_role = member.role
     return workspace
@@ -157,7 +157,7 @@ def switch_workspace(request: HttpRequest, workspace_id: int):
     ).first()
 
     if not member:
-        raise HttpError(403, 'Access denied to this workspace')
+        raise HttpError(404, 'Workspace not found')
 
     # Update user's current workspace
     user.current_workspace_id = workspace_id

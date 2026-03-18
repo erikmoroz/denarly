@@ -1,14 +1,14 @@
 """Business logic for the budgets app."""
 
+from budget_periods.exceptions import BudgetPeriodNotFoundError
 from budgets.exceptions import (
     BudgetCategoryNotFoundError,
-    BudgetCurrencyNotFoundError,
     BudgetNotFoundError,
-    BudgetPeriodNotFoundError,
 )
 from budgets.models import Budget
 from budgets.schemas import BudgetCreate, BudgetUpdate
 from categories.models import Category
+from common.exceptions import CurrencyNotFoundInWorkspaceError
 from common.services.base import get_workspace_period, resolve_currency
 
 
@@ -46,7 +46,7 @@ class BudgetService:
 
         currency = resolve_currency(workspace_id, data.currency)
         if not currency:
-            raise BudgetCurrencyNotFoundError(data.currency)
+            raise CurrencyNotFoundInWorkspaceError(data.currency)
 
         return Budget.objects.create(
             budget_period_id=data.budget_period_id,

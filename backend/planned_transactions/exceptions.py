@@ -31,11 +31,6 @@ class PlannedTransactionCategoryNotFoundError(ValidationError):
         super().__init__(message, code='category_not_found')
 
 
-class PlannedTransactionCurrencyNotFoundError(ValidationError):
-    def __init__(self, currency: str):
-        super().__init__(f'Currency {currency} not found in workspace', code='currency_not_found')
-
-
 class PlannedTransactionAlreadyExecutedError(ValidationError):
     default_message = 'Already executed'
 

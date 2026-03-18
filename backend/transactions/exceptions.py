@@ -24,11 +24,6 @@ class TransactionCategoryNotFoundError(ValidationError):
         super().__init__(message, code='category_not_found')
 
 
-class TransactionCurrencyNotFoundError(ValidationError):
-    def __init__(self, currency: str):
-        super().__init__(f'Currency {currency} not found in workspace', code='currency_not_found')
-
-
 class TransactionImportError(ValidationError):
     def __init__(self, message: str):
         super().__init__(message, code='import_error')

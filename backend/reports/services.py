@@ -10,6 +10,7 @@ from period_balances.models import PeriodBalance
 from reports.exceptions import ReportPeriodNotFoundError
 from reports.schemas import BudgetSummaryCategoryItem
 from transactions.models import Transaction
+from workspaces.models import Currency
 
 
 class ReportService:
@@ -46,7 +47,7 @@ class ReportService:
         return period, summary, balances
 
     @staticmethod
-    def get_current_balances(workspace_id: int, currencies: list) -> dict[str, Decimal]:
+    def get_current_balances(workspace_id: int, currencies: list[Currency]) -> dict[str, Decimal]:
         """Return the latest closing balance per currency for the workspace."""
         result = {}
         for currency in currencies:

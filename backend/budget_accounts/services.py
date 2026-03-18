@@ -3,12 +3,12 @@
 from django.db import transaction as db_transaction
 
 from budget_accounts.exceptions import (
-    BudgetAccountCurrencyNotFoundError,
     BudgetAccountDuplicateNameError,
     BudgetAccountNotFoundError,
 )
 from budget_accounts.models import BudgetAccount
 from budget_accounts.schemas import BudgetAccountCreate, BudgetAccountUpdate
+from common.exceptions import CurrencyNotFoundInWorkspaceError
 from common.services.base import resolve_currency
 
 
@@ -38,7 +38,7 @@ class BudgetAccountService:
 
         default_currency = resolve_currency(workspace_id, data.default_currency)
         if not default_currency:
-            raise BudgetAccountCurrencyNotFoundError(data.default_currency)
+            raise CurrencyNotFoundInWorkspaceError(data.default_currency)
 
         return BudgetAccount.objects.create(
             workspace_id=workspace_id,
@@ -68,7 +68,7 @@ class BudgetAccountService:
             currency_symbol = update_data.pop('default_currency')
             currency = resolve_currency(workspace_id, currency_symbol)
             if not currency:
-                raise BudgetAccountCurrencyNotFoundError(currency_symbol)
+                raise CurrencyNotFoundInWorkspaceError(currency_symbol)
             account.default_currency = currency
 
         for field, value in update_data.items():

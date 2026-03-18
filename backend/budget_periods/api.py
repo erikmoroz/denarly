@@ -76,12 +76,12 @@ def get_period(request, period_id: int):
 def create_period(request, data: BudgetPeriodCreate):
     """Create a new budget period. The budget_account_id must belong to the current workspace."""
     user = request.auth
-    workspace = user.current_workspace
+    workspace_id = user.current_workspace_id
 
-    require_role(user, workspace.id, WRITE_ROLES)
+    require_role(user, workspace_id, WRITE_ROLES)
 
     # Verify the budget account belongs to the current workspace
-    budget_account = BudgetAccount.objects.filter(id=data.budget_account_id, workspace_id=workspace.id).first()
+    budget_account = BudgetAccount.objects.filter(id=data.budget_account_id, workspace_id=workspace_id).first()
     if not budget_account:
         return 404, {'detail': 'Budget account not found in current workspace'}
 
@@ -97,7 +97,7 @@ def create_period(request, data: BudgetPeriodCreate):
         )
 
         # Automatically create period balances for all currencies
-        currencies = get_workspace_currencies(workspace.id)
+        currencies = get_workspace_currencies(workspace_id)
         PeriodBalance.objects.bulk_create(
             [
                 PeriodBalance(
@@ -121,17 +121,17 @@ def create_period(request, data: BudgetPeriodCreate):
 def update_period(request, period_id: int, data: BudgetPeriodUpdate):
     """Update a budget period."""
     user = request.auth
-    workspace = user.current_workspace
+    workspace_id = user.current_workspace_id
 
-    require_role(user, workspace.id, WRITE_ROLES)
+    require_role(user, workspace_id, WRITE_ROLES)
 
-    period = get_workspace_period(period_id, workspace.id)
+    period = get_workspace_period(period_id, workspace_id)
     if not period:
         return 404, {'detail': 'Period not found'}
 
     # If budget_account_id is being changed, verify the new account belongs to workspace
     if data.budget_account_id is not None and data.budget_account_id != period.budget_account_id:
-        new_account = BudgetAccount.objects.filter(id=data.budget_account_id, workspace_id=workspace.id).first()
+        new_account = BudgetAccount.objects.filter(id=data.budget_account_id, workspace_id=workspace_id).first()
         if not new_account:
             return 404, {'detail': 'Budget account not found in current workspace'}
         period.budget_account_id = data.budget_account_id

@@ -1,6 +1,6 @@
 """Domain exceptions for the workspaces app."""
 
-from common.exceptions import NotFoundError, ServiceError, ValidationError
+from common.exceptions import NotFoundError, ValidationError
 
 
 class CurrencyNotFoundError(NotFoundError):
@@ -15,8 +15,7 @@ class CurrencyDuplicateSymbolError(ValidationError):
         super().__init__(f'Currency with symbol {symbol} already exists in this workspace', code='duplicate_symbol')
 
 
-class WorkspaceCannotBeDeletedError(ServiceError):
-    http_status = 400
+class WorkspaceCannotBeDeletedError(ValidationError):
     default_message = (
         'Cannot delete this workspace: one or more members have no other workspace. '
         'Remove those members first or ensure they belong to another workspace.'

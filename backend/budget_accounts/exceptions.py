@@ -15,8 +15,3 @@ class BudgetAccountDuplicateNameError(ValidationError):
 
     def __init__(self, message: str | None = None):
         super().__init__(message, code='duplicate_name')
-
-
-class BudgetAccountCurrencyNotFoundError(ValidationError):
-    def __init__(self, currency: str):
-        super().__init__(f'Currency {currency} not found in workspace', code='currency_not_found')
