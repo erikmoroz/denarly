@@ -85,14 +85,16 @@ class WorkspaceService:
 
         affected_user_ids = [u.id for u in affected_users] + [user.id]
 
-        next_ws_per_user = (
+        memberships = (
             WorkspaceMember.objects.filter(user_id__in=affected_user_ids)
             .exclude(workspace_id=workspace_id)
-            .order_by('user_id', '-updated_at')
-            .distinct('user_id')
-            .values_list('user_id', 'workspace_id', named=True)
+            .order_by('-updated_at')
+            .values_list('user_id', 'workspace_id')
         )
-        next_ws_map = {row.user_id: row.workspace_id for row in next_ws_per_user}
+        next_ws_map: dict[int, int] = {}
+        for uid, wid in memberships:
+            if uid not in next_ws_map:
+                next_ws_map[uid] = wid
 
         # -----------------------------------------------------------------------
         # Deletion order matters due to FK constraints:

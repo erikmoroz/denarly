@@ -29,7 +29,11 @@ def list_balances(
     budget_period_id: int | None = Query(None),
     currency: str | None = Query(None),
 ):
-    """List period balances for the current workspace."""
+    """List period balances for the current workspace.
+
+    No require_role — all workspace members (including viewers) can read balances.
+    Membership is enforced by WorkspaceJWTAuth.
+    """
     workspace_id = request.auth.current_workspace_id
 
     from period_balances.models import PeriodBalance
@@ -80,7 +84,11 @@ def recalculate_all(request, data: RecalculateAllRequest):
 
 @router.get('/{balance_id}', response={200: PeriodBalanceOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def get_balance(request, balance_id: int):
-    """Get a specific period balance."""
+    """Get a specific period balance.
+
+    No require_role — all workspace members (including viewers) can read balances.
+    Membership is enforced by WorkspaceJWTAuth.
+    """
     workspace_id = request.auth.current_workspace_id
 
     balance = PeriodBalanceService.get_balance(balance_id, workspace_id)

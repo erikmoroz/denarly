@@ -78,6 +78,17 @@ def validate_workspace_access(workspace_id: int, user) -> Workspace:
     return workspace
 
 
+def _workspace_response(workspace: Workspace, role: str) -> dict:
+    """Build a WorkspaceOut-compatible dict without monkey-patching the ORM instance."""
+    return {
+        'id': workspace.id,
+        'name': workspace.name,
+        'owner_id': workspace.owner_id,
+        'created_at': workspace.created_at,
+        'user_role': role,
+    }
+
+
 # =============================================================================
 # Workspace Endpoints
 # =============================================================================
@@ -87,24 +98,15 @@ def validate_workspace_access(workspace_id: int, user) -> Workspace:
 def list_workspaces(request: HttpRequest):
     """List all workspaces the current user has access to."""
     user = request.auth
-
     memberships = WorkspaceMember.objects.filter(user_id=user.id).select_related('workspace')
-
-    result = []
-    for m in memberships:
-        ws = m.workspace
-        ws.user_role = m.role
-        result.append(ws)
-
-    return result
+    return [_workspace_response(m.workspace, m.role) for m in memberships]
 
 
 @router.post('/', response={201: WorkspaceOut}, auth=JWTAuth())
 def create_workspace_endpoint(request: HttpRequest, data: WorkspaceCreate):
     """Create a new workspace. User becomes owner and is auto-switched to it."""
     workspace = WorkspaceService.create_workspace(user=request.auth, name=data.name, create_demo=False)
-    workspace.user_role = Role.OWNER
-    return 201, workspace
+    return 201, _workspace_response(workspace, Role.OWNER)
 
 
 # IMPORTANT: /current routes must come BEFORE /{workspace_id} routes
@@ -117,9 +119,7 @@ def get_current_workspace_info(request: HttpRequest):
         member = WorkspaceMember.objects.select_related('workspace').get(workspace_id=workspace_id, user=user)
     except WorkspaceMember.DoesNotExist:
         raise HttpError(404, 'Workspace not found')
-    workspace = member.workspace
-    workspace.user_role = member.role
-    return workspace
+    return _workspace_response(member.workspace, member.role)
 
 
 @router.put('/current', response=WorkspaceOut, auth=WorkspaceJWTAuth())
@@ -133,8 +133,7 @@ def update_current_workspace(request: HttpRequest, data: WorkspaceUpdate):
         workspace.name = data.name
         workspace.save()
 
-    workspace.user_role = user_role
-    return workspace
+    return _workspace_response(workspace, user_role)
 
 
 @router.delete('/{workspace_id}', response={204: None}, auth=JWTAuth())
@@ -296,27 +295,20 @@ def leave_workspace(request: HttpRequest, workspace_id: int):
     """
     user = request.auth
 
-    # Validate workspace access
-    validate_workspace_access(workspace_id, user)
-
-    member = WorkspaceMember.objects.filter(
-        workspace_id=workspace_id,
-        user_id=user.id,
-    ).first()
-
-    if not member:
-        raise HttpError(404, 'You are not a member of this workspace')
-
-    # Owner cannot leave
-    if member.role == Role.OWNER:
-        raise HttpError(400, 'Workspace owner cannot leave. Transfer ownership first or delete the workspace.')
-
-    # Cannot leave if this is the only workspace
-    other_workspace_count = WorkspaceMember.objects.filter(user=user).exclude(workspace_id=workspace_id).count()
-    if other_workspace_count == 0:
-        raise HttpError(400, 'Cannot leave your only workspace.')
-
     with db_transaction.atomic():
+        member = WorkspaceMember.objects.select_for_update().filter(workspace_id=workspace_id, user_id=user.id).first()
+        if not member:
+            raise HttpError(404, 'You are not a member of this workspace')
+
+        if member.role == Role.OWNER:
+            raise HttpError(400, 'Workspace owner cannot leave. Transfer ownership first or delete the workspace.')
+
+        other_count = (
+            WorkspaceMember.objects.select_for_update().filter(user=user).exclude(workspace_id=workspace_id).count()
+        )
+        if other_count == 0:
+            raise HttpError(400, 'Cannot leave your only workspace.')
+
         member.delete()
 
         if user.current_workspace_id == workspace_id:

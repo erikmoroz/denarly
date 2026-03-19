@@ -8,3 +8,10 @@ class BudgetPeriodNotFoundError(NotFoundError):
 
     def __init__(self, message: str | None = None):
         super().__init__(message, code='not_found')
+
+
+class BudgetPeriodAccountNotFoundError(NotFoundError):
+    default_message = 'Budget account not found in current workspace'
+
+    def __init__(self, message: str | None = None):
+        super().__init__(message, code='not_found')
