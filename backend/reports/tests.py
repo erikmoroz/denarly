@@ -13,7 +13,7 @@ from categories.models import Category
 from common.tests.mixins import APIClientMixin, AuthMixin
 from period_balances.models import PeriodBalance
 from transactions.models import Transaction
-from workspaces.models import Workspace, WorkspaceMember
+from workspaces.models import Currency, Workspace, WorkspaceMember
 
 User = get_user_model()
 
@@ -69,11 +69,13 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        # Create budgets
+        self.pln = Currency.objects.get(workspace=self.workspace, symbol='PLN')
+        self.usd = Currency.objects.get(workspace=self.workspace, symbol='USD')
+
         Budget.objects.create(
             budget_period=self.period,
             category=self.category1,
-            currency='PLN',
+            currency=self.pln,
             amount=Decimal('1000.00'),
             created_by=self.user,
         )
@@ -81,7 +83,7 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
         Budget.objects.create(
             budget_period=self.period,
             category=self.category2,
-            currency='PLN',
+            currency=self.pln,
             amount=Decimal('500.00'),
             created_by=self.user,
         )
@@ -89,15 +91,14 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
         Budget.objects.create(
             budget_period=self.period,
             category=self.category3,
-            currency='USD',
+            currency=self.usd,
             amount=Decimal('200.00'),
             created_by=self.user,
         )
 
-        # Create period balances
         PeriodBalance.objects.create(
             budget_period=self.period,
-            currency='PLN',
+            currency=self.pln,
             opening_balance=Decimal('5000.00'),
             total_income=Decimal('8000.00'),
             total_expenses=Decimal('3000.00'),
@@ -109,7 +110,7 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
 
         PeriodBalance.objects.create(
             budget_period=self.period,
-            currency='USD',
+            currency=self.usd,
             opening_balance=Decimal('1000.00'),
             total_income=Decimal('2000.00'),
             total_expenses=Decimal('500.00'),
@@ -121,7 +122,7 @@ class ReportsTestCase(AuthMixin, APIClientMixin, TestCase):
 
         PeriodBalance.objects.create(
             budget_period=self.period2,
-            currency='PLN',
+            currency=self.pln,
             opening_balance=Decimal('10000.00'),
             total_income=Decimal('5000.00'),
             total_expenses=Decimal('2000.00'),
@@ -161,14 +162,13 @@ class TestBudgetSummary(ReportsTestCase):
 
     def test_budget_summary_with_actual_spending(self):
         """Test budget summary with actual transaction data."""
-        # Create some transactions
         Transaction.objects.create(
             budget_period=self.period,
             date=date(2025, 1, 15),
             description='Grocery shopping',
             category=self.category1,
             amount=Decimal('250.00'),
-            currency='PLN',
+            currency=self.pln,
             type='expense',
             created_by=self.user,
         )
@@ -179,7 +179,7 @@ class TestBudgetSummary(ReportsTestCase):
             description='Bus ticket',
             category=self.category2,
             amount=Decimal('50.00'),
-            currency='PLN',
+            currency=self.pln,
             type='expense',
             created_by=self.user,
         )
@@ -218,10 +218,15 @@ class TestBudgetSummary(ReportsTestCase):
             role='owner',
         )
 
+        other_currency = Currency.objects.create(
+            workspace=other_workspace,
+            symbol='PLN',
+            name='Polish Zloty',
+        )
         other_account = BudgetAccount.objects.create(
             workspace=other_workspace,
             name='Other Account',
-            default_currency='PLN',
+            default_currency=other_currency,
             created_by=other_user,
         )
 
@@ -286,10 +291,9 @@ class TestCurrentBalances(ReportsTestCase):
 
     def test_current_balances_returns_latest_by_date(self):
         """Test that current balances returns the latest period balance for each currency."""
-        # Add a new USD balance to period2 (later than period1)
         PeriodBalance.objects.create(
             budget_period=self.period2,
-            currency='USD',
+            currency=self.usd,
             opening_balance=Decimal('2000.00'),
             total_income=Decimal('1000.00'),
             total_expenses=Decimal('300.00'),

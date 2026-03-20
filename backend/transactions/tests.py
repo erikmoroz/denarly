@@ -13,7 +13,7 @@ from categories.models import Category
 from common.tests.mixins import APIClientMixin, AuthMixin
 from period_balances.models import PeriodBalance
 from transactions.models import Transaction
-from workspaces.models import Workspace, WorkspaceMember
+from workspaces.models import Currency, Workspace, WorkspaceMember
 
 User = get_user_model()
 
@@ -64,9 +64,12 @@ class TransactionsTestCase(AuthMixin, APIClientMixin, TestCase):
         )
 
         # Create period balances
+        self.pln_currency = self.workspace.currencies.filter(symbol='PLN').first()
+        self.usd_currency = self.workspace.currencies.filter(symbol='USD').first()
+
         PeriodBalance.objects.create(
             budget_period=self.period,
-            currency='PLN',
+            currency=self.pln_currency,
             opening_balance=Decimal('5000.00'),
             total_income=Decimal('8000.00'),
             total_expenses=Decimal('3000.00'),
@@ -78,7 +81,7 @@ class TransactionsTestCase(AuthMixin, APIClientMixin, TestCase):
 
         PeriodBalance.objects.create(
             budget_period=self.period,
-            currency='USD',
+            currency=self.usd_currency,
             opening_balance=Decimal('1000.00'),
             total_income=Decimal('2000.00'),
             total_expenses=Decimal('500.00'),
@@ -105,7 +108,7 @@ class TestListTransactions(TransactionsTestCase):
             description='Grocery shopping',
             category=self.category1,
             amount=Decimal('250.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -116,7 +119,7 @@ class TestListTransactions(TransactionsTestCase):
             description='Bus ticket',
             category=self.category2,
             amount=Decimal('50.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -133,7 +136,7 @@ class TestListTransactions(TransactionsTestCase):
             description='Grocery shopping',
             category=self.category1,
             amount=Decimal('250.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -150,7 +153,7 @@ class TestListTransactions(TransactionsTestCase):
             description='Salary',
             category=None,
             amount=Decimal('5000.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='income',
             created_by=self.user,
         )
@@ -161,7 +164,7 @@ class TestListTransactions(TransactionsTestCase):
             description='Groceries',
             category=self.category1,
             amount=Decimal('250.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -179,7 +182,7 @@ class TestListTransactions(TransactionsTestCase):
             description='Grocery shopping at Walmart',
             category=self.category1,
             amount=Decimal('250.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -190,7 +193,7 @@ class TestListTransactions(TransactionsTestCase):
             description='Bus ticket',
             category=self.category2,
             amount=Decimal('50.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -208,7 +211,7 @@ class TestListTransactions(TransactionsTestCase):
             description='Small expense',
             category=self.category1,
             amount=Decimal('50.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -219,7 +222,7 @@ class TestListTransactions(TransactionsTestCase):
             description='Large expense',
             category=self.category2,
             amount=Decimal('500.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -251,7 +254,7 @@ class TestGetTransaction(TransactionsTestCase):
             description='Grocery shopping',
             category=self.category1,
             amount=Decimal('250.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -283,10 +286,16 @@ class TestGetTransaction(TransactionsTestCase):
             role='owner',
         )
 
+        other_currency = Currency.objects.create(
+            workspace=other_workspace,
+            name='Polish Zloty',
+            symbol='PLN',
+        )
+
         other_account = BudgetAccount.objects.create(
             workspace=other_workspace,
             name='Other Account',
-            default_currency='PLN',
+            default_currency=other_currency,
             created_by=other_user,
         )
 
@@ -303,7 +312,7 @@ class TestGetTransaction(TransactionsTestCase):
             date=date(2025, 4, 15),
             description='Other transaction',
             amount=Decimal('100.00'),
-            currency='PLN',
+            currency=other_currency,
             type='expense',
             created_by=other_user,
         )
@@ -337,7 +346,7 @@ class TestCreateTransaction(TransactionsTestCase):
         self.assertEqual(data['amount'], '250.00')
 
         # Verify balance was updated
-        balance = PeriodBalance.objects.get(budget_period=self.period, currency='PLN')
+        balance = PeriodBalance.objects.get(budget_period=self.period, currency=self.pln_currency)
         self.assertEqual(balance.total_expenses, Decimal('3250.00'))  # 3000 + 250
 
     def test_create_income_transaction_success(self):
@@ -356,7 +365,7 @@ class TestCreateTransaction(TransactionsTestCase):
         self.assertEqual(data['type'], 'income')
 
         # Verify balance was updated
-        balance = PeriodBalance.objects.get(budget_period=self.period, currency='PLN')
+        balance = PeriodBalance.objects.get(budget_period=self.period, currency=self.pln_currency)
         self.assertEqual(balance.total_income, Decimal('13000.00'))  # 8000 + 5000
 
     def test_create_transaction_auto_assign_period(self):
@@ -421,7 +430,7 @@ class TestUpdateTransaction(TransactionsTestCase):
             description='Grocery shopping',
             category=self.category1,
             amount=Decimal('250.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -468,7 +477,7 @@ class TestUpdateTransaction(TransactionsTestCase):
         trans_id = data['id']
 
         # Get balance after creation
-        balance = PeriodBalance.objects.get(budget_period=self.period, currency='PLN')
+        balance = PeriodBalance.objects.get(budget_period=self.period, currency=self.pln_currency)
         self.assertEqual(balance.total_expenses, Decimal('3250.00'))  # 3000 + 250
 
         payload = {
@@ -503,7 +512,7 @@ class TestDeleteTransaction(TransactionsTestCase):
             description='Grocery shopping',
             category=self.category1,
             amount=Decimal('250.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -536,7 +545,7 @@ class TestDeleteTransaction(TransactionsTestCase):
         trans_id = data['id']
 
         # Get balance after creation
-        balance = PeriodBalance.objects.get(budget_period=self.period, currency='PLN')
+        balance = PeriodBalance.objects.get(budget_period=self.period, currency=self.pln_currency)
         self.assertEqual(balance.total_expenses, Decimal('3250.00'))  # 3000 + 250
 
         self.delete(f'/api/transactions/{trans_id}', **self.auth_headers())
@@ -562,7 +571,7 @@ class TestExportTransactions(TransactionsTestCase):
             description='Grocery shopping',
             category=self.category1,
             amount=Decimal('250.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
@@ -583,7 +592,7 @@ class TestExportTransactions(TransactionsTestCase):
             description='Salary',
             category=None,
             amount=Decimal('5000.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='income',
             created_by=self.user,
         )
@@ -594,7 +603,7 @@ class TestExportTransactions(TransactionsTestCase):
             description='Groceries',
             category=self.category1,
             amount=Decimal('250.00'),
-            currency='PLN',
+            currency=self.pln_currency,
             type='expense',
             created_by=self.user,
         )
