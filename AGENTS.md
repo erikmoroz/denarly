@@ -75,19 +75,21 @@ Every endpoint must verify resources belong to the user's workspace.
 # Standard library
 from datetime import date
 from decimal import Decimal
-from typing import Optional
 
 # Django/Django Ninja
-from django.db import transaction
+from django.db import transaction as db_transaction
 from django.http import HttpRequest
 from ninja import Router
-from ninja.errors import HttpError
+
+# Common utilities
+from common.auth import WorkspaceJWTAuth
+from common.exceptions import NotFoundError, ValidationError
+from common.permissions import require_role
 
 # Local apps (alphabetically)
-from common.auth import JWTAuth
-from common.services.base import get_workspace_period, require_role
-from core.schemas import DetailOut
-from transactions import services
+from transactions.schemas import TransactionCreate, TransactionOut
+from transactions.services import TransactionService
+from workspaces.models import WRITE_ROLES
 ```
 
 ### Naming Conventions
@@ -100,26 +102,30 @@ from transactions import services
 
 ### Django Ninja Endpoints
 
-Endpoints are thin wrappers — parse the request, call the service, return the response. Business logic belongs in `services.py`.
+Endpoints are thin wrappers — parse the request, call the service, return the response. Business logic belongs in service classes.
 
 For workspace-scoped endpoints, use `WorkspaceJWTAuth` which automatically validates that the user has an active workspace:
 
 ```python
 from common.auth import WorkspaceJWTAuth
-from transactions import services
+from common.permissions import require_role
+from transactions.services import TransactionService
+from workspaces.models import WRITE_ROLES
 
 router = Router(tags=['Transactions'])
 
 @router.get('', response=list[TransactionOut], auth=WorkspaceJWTAuth())
-def list_transactions(request: HttpRequest, budget_period_id: Optional[int] = Query(None)):
+def list_transactions(request: HttpRequest, budget_period_id: int | None = Query(None)):
     """Docstring describing the endpoint."""
     workspace_id = request.auth.current_workspace_id
-    return services.list_transactions(request.auth, workspace_id, budget_period_id)
+    return TransactionService.list(workspace_id, budget_period_id)
 
 @router.post('', response={201: TransactionOut}, auth=WorkspaceJWTAuth())
 def create_transaction(request: HttpRequest, data: TransactionCreate):
+    user = request.auth
     workspace_id = request.auth.current_workspace_id
-    return 201, services.create_transaction(request.auth, workspace_id, data)
+    require_role(user, workspace_id, WRITE_ROLES)
+    return 201, TransactionService.create(user, workspace_id, data)
 ```
 
 For endpoints that don't require an active workspace (e.g., listing all workspaces), use `JWTAuth`:
@@ -129,26 +135,39 @@ from common.auth import JWTAuth
 
 @router.get('', response=list[WorkspaceOut], auth=JWTAuth())
 def list_workspaces(request: HttpRequest):
-    return services.list_workspaces(request.auth)
+    return WorkspaceService.list(request.auth)
 ```
 
 ### Service Layer
 
-Business logic lives in `<app>/services.py`. Services handle role checks, DB operations, and balance updates. Shared helpers are in `common/services/base.py`.
+Business logic lives in `<app>/services.py` as class-based services (e.g., `TransactionService`). Services handle validation, DB operations, and balance updates. Domain-specific exceptions are defined in `<app>/exceptions.py`. Shared helpers are in `common/services/base.py`.
 
 ```python
 # transactions/services.py
-from common.services.base import get_workspace_period, require_role, update_period_balance
+from django.db import transaction as db_transaction
 
-@db_transaction.atomic
-def create_transaction(user, workspace, data) -> Transaction:
-    require_role(user, workspace.id, WRITE_ROLES)
-    period = get_workspace_period(data.budget_period_id, workspace.id)
-    if not period:
-        raise HttpError(404, 'Budget period not found')
-    txn = Transaction.objects.create(budget_period=period, ..., created_by=user, updated_by=user)
-    update_period_balance(period.id, txn.currency, txn.type, txn.amount, 'add')
-    return txn
+from common.exceptions import CurrencyNotFoundInWorkspaceError
+from common.services.base import get_or_create_period_balance, resolve_currency
+from transactions.exceptions import TransactionNoActivePeriodError, TransactionNotFoundError
+from transactions.models import Transaction
+
+class TransactionService:
+    @staticmethod
+    def get_transaction(transaction_id: int, workspace_id: int) -> Transaction:
+        trans = Transaction.objects.for_workspace(workspace_id).filter(id=transaction_id).first()
+        if not trans:
+            raise TransactionNotFoundError()
+        return trans
+
+    @staticmethod
+    @db_transaction.atomic
+    def create(user, workspace_id: int, data: TransactionCreate) -> Transaction:
+        currency = resolve_currency(workspace_id, data.currency)
+        if not currency:
+            raise CurrencyNotFoundInWorkspaceError(data.currency)
+        trans = Transaction.objects.create(..., created_by=user, updated_by=user)
+        TransactionService.update_period_balance(...)
+        return trans
 ```
 
 ### Pydantic Schemas
@@ -173,9 +192,25 @@ class TransactionOut(BaseModel):
 
 ### Error Handling
 
-- Use `HttpError(status, 'message')` for API errors
-- Return `{404: {'detail': 'Not found'}}` for response tuples
-- Use `transaction.atomic()` for database operations that update balances
+- **Domain Exceptions**: Services raise domain exceptions inheriting from `ServiceError` (in `common/exceptions.py`)
+- **Global Handler**: A Django Ninja exception handler in `config/urls.py` converts `ServiceError` to HTTP responses automatically
+- **Exception Types**: `NotFoundError` (404), `ValidationError` (400), `AuthenticationError` (401), `PermissionDeniedError` (403)
+- **App Exceptions**: Each app defines specific exceptions in `<app>/exceptions.py` (e.g., `TransactionNotFoundError`)
+- **Transactions**: Use `@db_transaction.atomic` for database operations that update balances
+
+```python
+# common/exceptions.py
+class ServiceError(Exception):
+    http_status: int = 500
+    default_message: str = 'An unexpected error occurred'
+
+class NotFoundError(ServiceError):
+    http_status = 404
+
+# transactions/exceptions.py
+class TransactionNotFoundError(NotFoundError):
+    default_message = 'Transaction not found'
+```
 
 ### Testing
 
@@ -360,8 +395,10 @@ queryset = Transaction.objects.filter(
 # In api.py — no business logic, just wire up
 @router.post('', response={201: TransactionOut}, auth=WorkspaceJWTAuth())
 def create_transaction_endpoint(request, data: TransactionCreate):
+    user = request.auth
     workspace_id = request.auth.current_workspace_id
-    return 201, services.create_transaction(request.auth, workspace_id, data)
+    require_role(user, workspace_id, WRITE_ROLES)
+    return 201, TransactionService.create(user, workspace_id, data)
 ```
 
 ### Backend: Workspace Management
