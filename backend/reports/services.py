@@ -4,10 +4,9 @@ from decimal import Decimal
 
 from django.db.models import Sum
 
+from budget_periods.services import BudgetPeriodService
 from budgets.models import Budget
-from common.services.base import get_workspace_period
 from period_balances.models import PeriodBalance
-from reports.exceptions import ReportPeriodNotFoundError
 from reports.schemas import BudgetSummaryCategoryItem
 from transactions.models import Transaction
 from workspaces.models import Currency
@@ -17,9 +16,7 @@ class ReportService:
     @staticmethod
     def get_budget_summary(workspace_id: int, period_id: int) -> tuple:
         """Return (period, summary_items, balances) for a period budget summary."""
-        period = get_workspace_period(period_id, workspace_id)
-        if not period:
-            raise ReportPeriodNotFoundError()
+        period = BudgetPeriodService.get(period_id, workspace_id)
 
         budgets = Budget.objects.filter(budget_period_id=period_id).select_related('category', 'currency')
 

@@ -1,7 +1,6 @@
 """Shared permission utilities for API endpoints."""
 
-from ninja.errors import HttpError
-
+from common.exceptions import PermissionDeniedError
 from workspaces.models import WorkspaceMember
 
 
@@ -15,7 +14,9 @@ def require_role(user, workspace_id: int, allowed_roles: list[str]) -> str:
             member = WorkspaceMember.objects.get(workspace_id=workspace_id, user=user)
             role = member.role
         except WorkspaceMember.DoesNotExist:
-            raise HttpError(403, 'Not a member of this workspace')
+            raise PermissionDeniedError('Not a member of this workspace')
     if role not in allowed_roles:
-        raise HttpError(403, f'Insufficient permissions. Required: {", ".join(allowed_roles)}. Your role: {role}')
+        raise PermissionDeniedError(
+            f'Insufficient permissions. Required: {", ".join(allowed_roles)}. Your role: {role}'
+        )
     return role

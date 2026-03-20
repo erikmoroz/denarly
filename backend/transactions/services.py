@@ -7,15 +7,15 @@ from decimal import Decimal
 from django.db import transaction as db_transaction
 
 from budget_periods.models import BudgetPeriod
+from budget_periods.services import BudgetPeriodService
 from categories.models import Category
 from common.exceptions import CurrencyNotFoundInWorkspaceError
-from common.services.base import get_or_create_period_balance, get_workspace_period, resolve_currency
+from common.services.base import get_or_create_period_balance, resolve_currency
 from transactions.exceptions import (
     TransactionCategoryNotFoundError,
     TransactionImportError,
     TransactionNoActivePeriodError,
     TransactionNotFoundError,
-    TransactionPeriodNotFoundError,
 )
 from transactions.models import Transaction
 from transactions.schemas import TransactionCreate, TransactionImport
@@ -27,10 +27,8 @@ class TransactionService:
         """Get a transaction and verify it belongs to the workspace."""
         trans = (
             Transaction.objects.select_related('category', 'budget_period__budget_account', 'currency')
-            .filter(
-                id=transaction_id,
-                budget_period__budget_account__workspace_id=workspace_id,
-            )
+            .for_workspace(workspace_id)
+            .filter(id=transaction_id)
             .first()
         )
         if not trans:
@@ -61,9 +59,7 @@ class TransactionService:
     def _resolve_period(workspace_id: int, date, period_id: int | None) -> int:
         """Return the resolved period_id, raising exception when not found."""
         if period_id:
-            period = get_workspace_period(period_id, workspace_id)
-            if not period:
-                raise TransactionPeriodNotFoundError()
+            BudgetPeriodService.get(period_id, workspace_id)
             return period_id
         period = (
             BudgetPeriod.objects.select_related('budget_account')
@@ -215,9 +211,7 @@ class TransactionService:
     @staticmethod
     def export(workspace_id: int, period_id: int, trans_type: str | None = None) -> list[dict]:
         """Return serialisable transaction data for a period."""
-        period = get_workspace_period(period_id, workspace_id)
-        if not period:
-            raise TransactionPeriodNotFoundError('Budget period not found')
+        BudgetPeriodService.get(period_id, workspace_id)
 
         queryset = Transaction.objects.select_related('category', 'currency').filter(budget_period_id=period_id)
         if trans_type:
@@ -239,9 +233,7 @@ class TransactionService:
     @db_transaction.atomic
     def import_data(user, workspace_id: int, period_id: int, data: list) -> int:
         """Bulk-create transactions from parsed JSON data. Returns count of created records."""
-        period = get_workspace_period(period_id, workspace_id)
-        if not period:
-            raise TransactionPeriodNotFoundError('Budget period not found')
+        BudgetPeriodService.get(period_id, workspace_id)
 
         from workspaces.models import Currency
 

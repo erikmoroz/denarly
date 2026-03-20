@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from django.db import IntegrityError
 
+from budget_periods.services import BudgetPeriodService
 from categories.exceptions import (
     CategoryDuplicateNameError,
     CategoryNotFoundError,
-    CategoryPeriodNotFoundError,
 )
 from categories.models import Category
 from categories.schemas import CategoryCreate, CategoryUpdate
@@ -20,7 +20,8 @@ class CategoryService:
         """Get a category and verify it belongs to the workspace."""
         category = (
             Category.objects.select_related('budget_period__budget_account')
-            .filter(id=category_id, budget_period__budget_account__workspace_id=workspace_id)
+            .for_workspace(workspace_id)
+            .filter(id=category_id)
             .first()
         )
         if not category:
@@ -60,9 +61,7 @@ class CategoryService:
     @staticmethod
     def create(user, workspace_id: int, data: CategoryCreate) -> Category:
         """Create a category, validating period ownership."""
-        period = get_workspace_period(data.budget_period_id, workspace_id)
-        if not period:
-            raise CategoryPeriodNotFoundError()
+        BudgetPeriodService.get(data.budget_period_id, workspace_id)
 
         try:
             return Category.objects.create(
@@ -96,18 +95,14 @@ class CategoryService:
     @staticmethod
     def export(workspace_id: int, period_id: int) -> list[str]:
         """Return category names for a period."""
-        period = get_workspace_period(period_id, workspace_id)
-        if not period:
-            raise CategoryPeriodNotFoundError()
+        BudgetPeriodService.get(period_id, workspace_id)
 
         return list(Category.objects.filter(budget_period_id=period_id).values_list('name', flat=True))
 
     @staticmethod
     def import_data(user, workspace_id: int, period_id: int, data: list) -> int:
         """Bulk-create categories from a list of name strings. Returns count of created records."""
-        period = get_workspace_period(period_id, workspace_id)
-        if not period:
-            raise CategoryPeriodNotFoundError()
+        BudgetPeriodService.get(period_id, workspace_id)
 
         existing_names = set(Category.objects.filter(budget_period_id=period_id).values_list('name', flat=True))
 

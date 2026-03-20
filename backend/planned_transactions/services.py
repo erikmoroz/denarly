@@ -5,16 +5,16 @@ from datetime import date
 from django.db import transaction as db_transaction
 
 from budget_periods.models import BudgetPeriod
+from budget_periods.services import BudgetPeriodService
 from categories.models import Category
 from common.exceptions import CurrencyNotFoundInWorkspaceError
-from common.services.base import get_or_create_period_balance, get_workspace_period, resolve_currency
+from common.services.base import get_or_create_period_balance, resolve_currency
 from planned_transactions.exceptions import (
     PlannedTransactionAlreadyExecutedError,
     PlannedTransactionCategoryNotFoundError,
     PlannedTransactionImportError,
     PlannedTransactionNoActivePeriodError,
     PlannedTransactionNotFoundError,
-    PlannedTransactionPeriodNotFoundError,
 )
 from planned_transactions.models import PlannedTransaction
 from planned_transactions.schemas import PlannedTransactionCreate, PlannedTransactionImport, PlannedTransactionUpdate
@@ -27,10 +27,8 @@ class PlannedTransactionService:
         """Get a planned transaction and verify it belongs to the workspace."""
         planned = (
             PlannedTransaction.objects.select_related('budget_period__budget_account', 'category', 'currency')
-            .filter(
-                id=planned_id,
-                budget_period__budget_account__workspace_id=workspace_id,
-            )
+            .for_workspace(workspace_id)
+            .filter(id=planned_id)
             .first()
         )
         if not planned:
@@ -41,9 +39,7 @@ class PlannedTransactionService:
     def _resolve_period(workspace_id: int, planned_date: date, period_id: int | None) -> int:
         """Return the period_id for the planned date, raising when not found."""
         if period_id:
-            period = get_workspace_period(period_id, workspace_id)
-            if not period:
-                raise PlannedTransactionPeriodNotFoundError()
+            BudgetPeriodService.get(period_id, workspace_id)
             return period_id
         period = (
             BudgetPeriod.objects.select_related('budget_account')
@@ -174,9 +170,7 @@ class PlannedTransactionService:
     @staticmethod
     def export(workspace_id: int, period_id: int, status: str | None = None) -> list[dict]:
         """Return serialisable planned transaction data for a period."""
-        period = get_workspace_period(period_id, workspace_id)
-        if not period:
-            raise PlannedTransactionPeriodNotFoundError()
+        BudgetPeriodService.get(period_id, workspace_id)
 
         queryset = PlannedTransaction.objects.select_related('category', 'currency').filter(budget_period_id=period_id)
         if status:
@@ -196,9 +190,7 @@ class PlannedTransactionService:
     @staticmethod
     def import_data(user, workspace_id: int, period_id: int, data: list) -> int:
         """Bulk-create planned transactions from parsed JSON data. Returns count of created records."""
-        period = get_workspace_period(period_id, workspace_id)
-        if not period:
-            raise PlannedTransactionPeriodNotFoundError()
+        BudgetPeriodService.get(period_id, workspace_id)
 
         from workspaces.models import Currency
 

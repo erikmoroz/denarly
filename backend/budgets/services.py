@@ -1,6 +1,6 @@
 """Business logic for the budgets app."""
 
-from budget_periods.exceptions import BudgetPeriodNotFoundError
+from budget_periods.services import BudgetPeriodService
 from budgets.exceptions import (
     BudgetCategoryNotFoundError,
     BudgetNotFoundError,
@@ -9,7 +9,7 @@ from budgets.models import Budget
 from budgets.schemas import BudgetCreate, BudgetUpdate
 from categories.models import Category
 from common.exceptions import CurrencyNotFoundInWorkspaceError
-from common.services.base import get_workspace_period, resolve_currency
+from common.services.base import resolve_currency
 
 
 class BudgetService:
@@ -18,7 +18,8 @@ class BudgetService:
         """Get a budget and verify it belongs to the workspace."""
         budget = (
             Budget.objects.select_related('category', 'currency')
-            .filter(id=budget_id, budget_period__budget_account__workspace_id=workspace_id)
+            .for_workspace(workspace_id)
+            .filter(id=budget_id)
             .first()
         )
         if not budget:
@@ -36,9 +37,7 @@ class BudgetService:
     @staticmethod
     def create(user, workspace_id: int, data: BudgetCreate) -> Budget:
         """Create a budget entry, validating period and category membership."""
-        period = get_workspace_period(data.budget_period_id, workspace_id)
-        if not period:
-            raise BudgetPeriodNotFoundError()
+        BudgetPeriodService.get(data.budget_period_id, workspace_id)
 
         category = Category.objects.filter(id=data.category_id, budget_period_id=data.budget_period_id).first()
         if not category:

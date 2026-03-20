@@ -33,6 +33,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     queryKey: ['workspace-current'],
     queryFn: workspacesApi.getCurrent,
     enabled: isAuthenticated,
+    retry: (failureCount, error) => {
+      const status = (error as any)?.response?.status
+      if (status === 400 || status === 403) return false
+      return failureCount < 3
+    },
   });
 
   const {
@@ -43,6 +48,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     queryKey: ['workspaces'],
     queryFn: workspacesApi.list,
     enabled: isAuthenticated,
+    retry: (failureCount, error) => {
+      const status = (error as any)?.response?.status
+      if (status === 401) return false
+      return failureCount < 3
+    },
   });
 
   const {

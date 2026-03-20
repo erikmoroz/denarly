@@ -5,12 +5,12 @@ from __future__ import annotations
 from django.db import transaction as db_transaction
 
 from budget_periods.models import BudgetPeriod
+from budget_periods.services import BudgetPeriodService
 from common.exceptions import CurrencyNotFoundInWorkspaceError
-from common.services.base import get_or_create_period_balance, get_workspace_period, resolve_currency
+from common.services.base import get_or_create_period_balance, resolve_currency
 from currency_exchanges.exceptions import (
     CurrencyExchangeImportError,
     CurrencyExchangeNotFoundError,
-    CurrencyExchangePeriodNotFoundError,
 )
 from currency_exchanges.models import CurrencyExchange
 from currency_exchanges.schemas import CurrencyExchangeCreate, CurrencyExchangeImport, CurrencyExchangeUpdate
@@ -23,10 +23,8 @@ class CurrencyExchangeService:
         """Get an exchange and verify it belongs to the workspace."""
         exchange = (
             CurrencyExchange.objects.select_related('budget_period__budget_account', 'from_currency', 'to_currency')
-            .filter(
-                id=exchange_id,
-                budget_period__budget_account__workspace_id=workspace_id,
-            )
+            .for_workspace(workspace_id)
+            .filter(id=exchange_id)
             .first()
         )
         if not exchange:
@@ -174,9 +172,7 @@ class CurrencyExchangeService:
     @staticmethod
     def export(workspace_id: int, period_id: int) -> list[dict]:
         """Return serialisable exchange data for a period."""
-        period = get_workspace_period(period_id, workspace_id)
-        if not period:
-            raise CurrencyExchangePeriodNotFoundError()
+        BudgetPeriodService.get(period_id, workspace_id)
 
         exchanges = (
             CurrencyExchange.objects.select_related('from_currency', 'to_currency')
@@ -200,9 +196,7 @@ class CurrencyExchangeService:
     @db_transaction.atomic
     def import_data(user, workspace_id: int, period_id: int, data: list) -> int:
         """Bulk-create exchanges from parsed JSON data. Returns count of created records."""
-        period = get_workspace_period(period_id, workspace_id)
-        if not period:
-            raise CurrencyExchangePeriodNotFoundError()
+        BudgetPeriodService.get(period_id, workspace_id)
 
         from workspaces.models import Currency
 

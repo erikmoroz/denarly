@@ -49,3 +49,10 @@ class CurrencyNotFoundInWorkspaceError(ValidationError):
 
     def __init__(self, currency: str):
         super().__init__(f'Currency {currency} not found in workspace', code='currency_not_found')
+
+
+class PermissionDeniedError(ServiceError):
+    """Caller lacks required role. Maps to HTTP 403."""
+
+    http_status = 403
+    default_message = 'Insufficient permissions'

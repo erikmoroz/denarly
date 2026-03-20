@@ -24,10 +24,10 @@ class BudgetAccountService:
     @staticmethod
     def get(account_id: int, workspace_id: int) -> BudgetAccount:
         """Get a budget account by ID within a workspace."""
-        try:
-            return BudgetAccount.objects.get(id=account_id, workspace_id=workspace_id)
-        except BudgetAccount.DoesNotExist:
+        account = BudgetAccount.objects.for_workspace(workspace_id).filter(id=account_id).first()
+        if not account:
             raise BudgetAccountNotFoundError()
+        return account
 
     @staticmethod
     @db_transaction.atomic
