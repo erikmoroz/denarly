@@ -59,9 +59,12 @@ class BudgetAccountService:
         """Update a budget account."""
         account = BudgetAccountService.get(account_id, workspace_id)
 
-        if data.name is not None and data.name != account.name:
-            if BudgetAccount.objects.filter(workspace_id=workspace_id, name=data.name).exclude(id=account_id).exists():
-                raise BudgetAccountDuplicateNameError()
+        if (
+            data.name is not None
+            and data.name != account.name
+            and BudgetAccount.objects.filter(workspace_id=workspace_id, name=data.name).exclude(id=account_id).exists()
+        ):
+            raise BudgetAccountDuplicateNameError()
 
         update_data = data.model_dump(exclude_unset=True)
         if 'default_currency' in update_data:
