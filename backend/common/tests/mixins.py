@@ -47,7 +47,9 @@ class APIClientMixin:
         """Helper for GET requests."""
         response = self.client.get(path, **kwargs)
         self.response = response
-        return response.json() if response.content else {}
+        if response.content and 'application/json' in response.get('Content-Type', ''):
+            return response.json()
+        return {}
 
     def patch(self, path: str, data: dict | None = None, **kwargs) -> object:
         """Helper for PATCH requests with JSON."""

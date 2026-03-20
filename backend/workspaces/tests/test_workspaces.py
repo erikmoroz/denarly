@@ -104,8 +104,8 @@ class TestGetCurrentWorkspace(WorkspaceTestCase):
         self.get('/api/workspaces/current')
         self.assertStatus(401)
 
-    def test_get_current_workspace_returns_404_when_not_a_member(self):
-        """A user with current_workspace_id set but no membership should get 404."""
+    def test_get_current_workspace_returns_403_when_not_a_member(self):
+        """A user with current_workspace_id set but no membership should get 403."""
         from common.auth import create_access_token
 
         user = UserFactory(current_workspace=self.workspace)
@@ -113,7 +113,7 @@ class TestGetCurrentWorkspace(WorkspaceTestCase):
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
 
         self.get('/api/workspaces/current', **headers)
-        self.assertStatus(404)
+        self.assertStatus(403)
 
 
 # =============================================================================
@@ -934,7 +934,7 @@ class TestWorkspaceJWTAuth400(APIClientMixin, TestCase):
         endpoints = [
             '/api/workspaces/current',
             '/api/budget-accounts',
-            '/api/currencies',
+            '/api/workspaces/currencies',
             '/api/transactions',
             '/api/categories',
         ]
