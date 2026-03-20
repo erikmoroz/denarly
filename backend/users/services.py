@@ -233,16 +233,10 @@ class UserService:
         # Delete solo-owned workspaces and all their data
         deleted_workspace_names = list(owned_workspaces.values_list('name', flat=True))
 
-        # Delete financial records with PROTECT on Currency but SET_NULL on BudgetPeriod.
-        # These survive BudgetAccount deletion (via budget_period SET_NULL) but block
-        # Currency deletion (via currency PROTECT).
-        from currency_exchanges.models import CurrencyExchange
-        from planned_transactions.models import PlannedTransaction
-        from transactions.models import Transaction
+        from common.services.base import delete_workspace_financial_records
 
-        Transaction.objects.filter(currency__workspace__in=owned_workspaces).delete()
-        PlannedTransaction.objects.filter(currency__workspace__in=owned_workspaces).delete()
-        CurrencyExchange.objects.filter(from_currency__workspace__in=owned_workspaces).delete()
+        for ws in owned_workspaces:
+            delete_workspace_financial_records(ws.id)
 
         # Delete BudgetAccounts (CASCADEs: BudgetPeriod, Category, Budget, PeriodBalance)
         # BudgetAccount.default_currency has PROTECT, but currencies are deleted with workspace.

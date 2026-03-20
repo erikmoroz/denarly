@@ -4,6 +4,8 @@ from django.test import TestCase
 
 from budget_accounts.models import BudgetAccount
 from budget_periods.models import BudgetPeriod
+from budgets.models import Budget
+from categories.models import Category
 from common.tests.factories import UserFactory
 from currency_exchanges.models import CurrencyExchange
 from planned_transactions.models import PlannedTransaction
@@ -89,6 +91,21 @@ class TestWorkspaceServiceCreateWorkspace(TestCase):
 
         account_count = BudgetAccount.objects.filter(workspace=workspace).count()
         self.assertEqual(account_count, 1)
+
+    def test_create_workspace_with_demo_fixtures(self):
+        """Test that create_demo=True creates demo transactions, categories, budgets, etc."""
+        user = UserFactory()
+        workspace = WorkspaceService.create_workspace(user=user, name='Demo WS', create_demo=True)
+
+        self.assertTrue(Transaction.objects.filter(budget_period__budget_account__workspace_id=workspace.id).exists())
+        self.assertTrue(Category.objects.filter(budget_period__budget_account__workspace_id=workspace.id).exists())
+        self.assertTrue(Budget.objects.filter(budget_period__budget_account__workspace_id=workspace.id).exists())
+        self.assertTrue(
+            PlannedTransaction.objects.filter(budget_period__budget_account__workspace_id=workspace.id).exists()
+        )
+        self.assertTrue(
+            CurrencyExchange.objects.filter(budget_period__budget_account__workspace_id=workspace.id).exists()
+        )
 
 
 class TestWorkspaceServiceDeleteWorkspace(TestCase):

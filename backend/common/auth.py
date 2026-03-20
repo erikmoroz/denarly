@@ -63,7 +63,7 @@ def create_access_token(user: User) -> str:
     payload = {
         'user_id': str(user.id),
         'email': user.email,
-        'current_workspace_id': str(user.current_workspace.id) if user.current_workspace else None,
+        'current_workspace_id': str(user.current_workspace_id) if user.current_workspace_id else None,
         'iat': now.timestamp(),
         'exp': exp.timestamp(),
     }
@@ -86,7 +86,7 @@ def user_to_schema(user: User) -> UserOut:
         id=user.id,
         email=user.email,
         full_name=user.full_name,
-        current_workspace_id=user.current_workspace.id if user.current_workspace else None,
+        current_workspace_id=user.current_workspace_id if user.current_workspace_id else None,
         is_active=user.is_active,
         created_at=user.created_at.isoformat(),
     )

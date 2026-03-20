@@ -36,3 +36,18 @@ def get_workspace_currencies(workspace_id: int) -> list:
     from workspaces.models import Currency
 
     return list(Currency.objects.filter(workspace_id=workspace_id))
+
+
+def delete_workspace_financial_records(workspace_id: int) -> None:
+    """Delete financial records that have PROTECT FKs on Currency."""
+    from currency_exchanges.models import CurrencyExchange
+    from planned_transactions.models import PlannedTransaction
+    from transactions.models import Transaction
+
+    Transaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
+    PlannedTransaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
+    CurrencyExchange.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
+    CurrencyExchange.objects.filter(
+        budget_period__isnull=True,
+        from_currency__workspace_id=workspace_id,
+    ).delete()

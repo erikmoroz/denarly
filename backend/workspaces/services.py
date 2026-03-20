@@ -77,10 +77,7 @@ class WorkspaceService:
         Switches current_workspace for ALL users who had this as their active workspace.
         Users with no other workspace will have current_workspace set to None.
         """
-        from budget_accounts.models import BudgetAccount
-        from currency_exchanges.models import CurrencyExchange
-        from planned_transactions.models import PlannedTransaction
-        from transactions.models import Transaction
+        from common.services.base import delete_workspace_financial_records
         from users.models import User as UserModel
 
         workspace = Workspace.objects.select_for_update().get(id=workspace.id)
@@ -90,8 +87,6 @@ class WorkspaceService:
 
         affected_user_ids = [u.id for u in affected_users] + [user.id]
 
-        # Lock user rows to prevent concurrent workspace switches while we update current_workspace.
-        # The result is intentionally discarded — only the SELECT FOR UPDATE side-effect matters.
         list(UserModel.objects.filter(id__in=affected_user_ids).select_for_update())
 
         memberships = (
@@ -105,34 +100,9 @@ class WorkspaceService:
             if uid not in next_ws_map:
                 next_ws_map[uid] = wid
 
-        # -----------------------------------------------------------------------
-        # Deletion order matters due to FK constraints:
-        #
-        # 1. Transaction, PlannedTransaction, CurrencyExchange
-        #    - These have currency FK with on_delete=PROTECT, so they must be
-        #      deleted before their Currency (which CASCADE-deletes with Workspace).
-        #    - They also have budget_period FK (SET_NULL) — safe, but explicit
-        #      deletion avoids orphaned rows.
-        #
-        # 2. CurrencyExchange with budget_period=NULL
-        #    - Orphaned exchanges whose period was already deleted; matched by
-        #      from_currency__workspace_id instead.
-        #
-        # 3. BudgetAccount
-        #    - CASCADE deletes: BudgetPeriod → Category, Budget, PeriodBalance
-        #    - BudgetAccount.default_currency has PROTECT, but currencies still
-        #      exist at this point (deleted when Workspace.delete() cascades).
-        #
-        # 4. Workspace.delete()
-        #    - CASCADE deletes: Currency, WorkspaceMember
-        # -----------------------------------------------------------------------
-        Transaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
-        PlannedTransaction.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
-        CurrencyExchange.objects.filter(budget_period__budget_account__workspace_id=workspace_id).delete()
-        CurrencyExchange.objects.filter(
-            budget_period__isnull=True,
-            from_currency__workspace_id=workspace_id,
-        ).delete()
+        delete_workspace_financial_records(workspace_id)
+
+        from budget_accounts.models import BudgetAccount
 
         BudgetAccount.objects.filter(workspace_id=workspace_id).delete()
 
@@ -208,6 +178,8 @@ class WorkspaceMemberService:
 
         Raises domain exceptions on error.
         """
+        Workspace.objects.select_for_update().get(id=workspace_id)
+
         current_member_count = WorkspaceMember.objects.filter(workspace_id=workspace_id).count()
         if current_member_count >= settings.WORKSPACE_MAX_MEMBERS:
             raise WorkspaceMemberLimitReachedError()

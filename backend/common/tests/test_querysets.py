@@ -122,3 +122,15 @@ class TestWorkspaceScopedQuerySet(TestCase):
 
         self.assertEqual(result.count(), 0)
         self.assertTrue(result.exists() is False)
+
+    def test_for_workspace_raises_valueerror_for_none(self):
+        WorkspaceFactory()
+        with self.assertRaises(ValueError) as context:
+            Currency.objects.for_workspace(None)
+        self.assertIn('workspace_id is required', str(context.exception))
+
+    def test_for_workspace_raises_valueerror_for_zero(self):
+        WorkspaceFactory()
+        with self.assertRaises(ValueError) as context:
+            Currency.objects.for_workspace(0)
+        self.assertIn('workspace_id is required', str(context.exception))

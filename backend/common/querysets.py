@@ -8,6 +8,10 @@ class WorkspaceScopedQuerySet(models.QuerySet):
     """
 
     def for_workspace(self, workspace_id: int):
+        if not workspace_id:
+            raise ValueError(
+                f'workspace_id is required for {self.model.__name__}.for_workspace(), got {workspace_id!r}'
+            )
         filter_path = getattr(self.model, 'WORKSPACE_FILTER', None)
         if not filter_path:
             raise ValueError(f'{self.model.__name__} has no WORKSPACE_FILTER defined')
