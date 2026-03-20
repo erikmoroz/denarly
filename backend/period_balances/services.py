@@ -4,12 +4,12 @@ from decimal import Decimal
 
 from django.db.models import Sum
 from django.utils import timezone
-from ninja.errors import HttpError
 
 from budget_periods.models import BudgetPeriod
+from common.exceptions import CurrencyNotFoundInWorkspaceError
 from common.services.base import get_or_create_period_balance
 from currency_exchanges.models import CurrencyExchange
-from period_balances.exceptions import PeriodBalanceNotFoundError
+from period_balances.exceptions import PeriodBalanceNotFoundError, PeriodBalancePeriodNotFoundError
 from period_balances.models import PeriodBalance
 from period_balances.schemas import PeriodBalanceUpdate
 from transactions.models import Transaction
@@ -35,12 +35,12 @@ class PeriodBalanceService:
 
         current_period = BudgetPeriod.objects.select_related('budget_account__workspace').filter(id=period_id).first()
         if not current_period:
-            raise HttpError(404, 'Budget period not found')
+            raise PeriodBalancePeriodNotFoundError()
 
         workspace = current_period.budget_account.workspace
         currency = Currency.objects.filter(workspace=workspace, symbol=currency_symbol).first()
         if not currency:
-            raise HttpError(400, f'Currency {currency_symbol} not found in workspace')
+            raise CurrencyNotFoundInWorkspaceError(currency_symbol)
 
         # Opening balance comes from the previous period's closing balance
         prev_period = (
