@@ -2,17 +2,7 @@
 
 from decimal import Decimal
 
-from budget_periods.models import BudgetPeriod
 from period_balances.models import PeriodBalance
-
-
-def get_workspace_period(period_id: int, workspace_id: int) -> BudgetPeriod | None:
-    """Get a period and verify it belongs to the workspace."""
-    return (
-        BudgetPeriod.objects.select_related('budget_account')
-        .filter(id=period_id, budget_account__workspace_id=workspace_id)
-        .first()
-    )
 
 
 def resolve_currency(workspace_id: int, symbol: str):

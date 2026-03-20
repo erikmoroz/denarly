@@ -50,7 +50,6 @@ Shared utilities used across the project:
   - `can_reset_password()` - Role-based password reset rules
 
 - **`services/base.py`**: Shared service helpers
-  - `get_workspace_period(period_id, workspace_id)` - Validates period belongs to workspace
   - `require_role(user, workspace_id, allowed_roles)` - Raises 403 if role not allowed
   - `get_or_create_period_balance(period_id, currency, user)` - Gets or creates balance record
   - `update_period_balance(period_id, currency, trans_type, amount, operation)` - Updates balance incrementally

@@ -11,10 +11,20 @@ from transactions.models import Transaction
 from workspaces.exceptions import (
     CurrencyDuplicateSymbolError,
     CurrencyNotFoundError,
+    WorkspaceMemberAlreadyExistsError,
+    WorkspaceMemberCannotChangeOwnRoleError,
+    WorkspaceMemberCannotRemoveSelfError,
+    WorkspaceMemberCannotResetOwnPasswordError,
+    WorkspaceMemberLimitReachedError,
+    WorkspaceMemberPasswordRequiredError,
+    WorkspaceOwnerCannotLeaveError,
+    WorkspaceOwnerPasswordResetError,
+    WorkspaceOwnerRemoveError,
+    WorkspaceOwnerRoleChangeError,
 )
 from workspaces.factories import WorkspaceFactory, WorkspaceMemberFactory
 from workspaces.models import Currency, Workspace, WorkspaceMember
-from workspaces.services import CurrencyService, WorkspaceService
+from workspaces.services import CurrencyService, WorkspaceMemberService, WorkspaceService
 
 
 class TestWorkspaceServiceCreateWorkspace(TestCase):
@@ -322,3 +332,236 @@ class TestCurrencyService(TestCase):
 
         with self.assertRaises(CurrencyNotFoundError):
             CurrencyService.delete_currency(usd.id, workspace2.id)
+
+
+class TestWorkspaceMemberService(TestCase):
+    """Tests for WorkspaceMemberService."""
+
+    def test_add_member_existing_user(self):
+        """Test adding an existing user to workspace."""
+        workspace = WorkspaceFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+        existing_user = UserFactory()
+
+        class Data:
+            email = existing_user.email
+            role = 'member'
+            password = None
+            full_name = None
+
+        result = WorkspaceMemberService.add_member(admin, workspace.id, Data())
+
+        self.assertFalse(result['is_new_user'])
+        self.assertEqual(result['user_id'], existing_user.id)
+        self.assertTrue(WorkspaceMember.objects.filter(workspace=workspace, user=existing_user, role='member').exists())
+
+    def test_add_member_new_user(self):
+        """Test adding a new user (creates user with password)."""
+        workspace = WorkspaceFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+
+        class Data:
+            email = 'newuser@example.com'
+            role = 'viewer'
+            password = 'testpass123'
+            full_name = 'New User'
+
+        result = WorkspaceMemberService.add_member(admin, workspace.id, Data())
+
+        self.assertTrue(result['is_new_user'])
+        new_member = WorkspaceMember.objects.get(id=result['member_id'])
+        self.assertEqual(new_member.user.email, 'newuser@example.com')
+        self.assertEqual(new_member.role, 'viewer')
+
+    def test_add_member_duplicate_fails(self):
+        """Test that adding duplicate member raises WorkspaceMemberAlreadyExistsError."""
+        workspace = WorkspaceFactory()
+        admin = UserFactory()
+        existing_user = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+        WorkspaceMemberFactory(workspace=workspace, user=existing_user, role='member')
+
+        class Data:
+            email = existing_user.email
+            role = 'viewer'
+            password = None
+            full_name = None
+
+        with self.assertRaises(WorkspaceMemberAlreadyExistsError):
+            WorkspaceMemberService.add_member(admin, workspace.id, Data())
+
+    def test_add_member_limit_reached(self):
+        """Test that adding member when at limit raises WorkspaceMemberLimitReachedError."""
+        from django.conf import settings
+
+        workspace = WorkspaceFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='owner')
+
+        for i in range(settings.WORKSPACE_MAX_MEMBERS - 1):
+            user = UserFactory()
+            WorkspaceMemberFactory(workspace=workspace, user=user, role='member')
+
+        new_user = UserFactory()
+
+        class Data:
+            email = new_user.email
+            role = 'member'
+            password = None
+            full_name = None
+
+        with self.assertRaises(WorkspaceMemberLimitReachedError):
+            WorkspaceMemberService.add_member(admin, workspace.id, Data())
+
+    def test_add_member_password_required_for_new_user(self):
+        """Test that new user without password raises WorkspaceMemberPasswordRequiredError."""
+        workspace = WorkspaceFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+
+        class Data:
+            email = 'newuser@example.com'
+            role = 'member'
+            password = None
+            full_name = None
+
+        with self.assertRaises(WorkspaceMemberPasswordRequiredError):
+            WorkspaceMemberService.add_member(admin, workspace.id, Data())
+
+    def test_leave_success(self):
+        """Test successfully leaving a workspace."""
+        workspace = WorkspaceFactory()
+        other_ws = WorkspaceFactory()
+        member = UserFactory(current_workspace=workspace)
+        WorkspaceMemberFactory(workspace=workspace, user=member, role='member')
+        WorkspaceMemberFactory(workspace=other_ws, user=member, role='member')
+
+        result = WorkspaceMemberService.leave(member, workspace.id)
+
+        self.assertEqual(result['message'], 'Successfully left workspace')
+        self.assertFalse(WorkspaceMember.objects.filter(workspace=workspace, user=member).exists())
+
+    def test_leave_owner_blocked(self):
+        """Test that owner cannot leave workspace."""
+        workspace = WorkspaceFactory()
+        owner = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
+
+        with self.assertRaises(WorkspaceOwnerCannotLeaveError):
+            WorkspaceMemberService.leave(owner, workspace.id)
+
+    def test_leave_auto_switches_workspace(self):
+        """Test that leaving current workspace auto-switches to next available."""
+        workspace = WorkspaceFactory()
+        other_ws = WorkspaceFactory()
+        member = UserFactory(current_workspace=workspace)
+        WorkspaceMemberFactory(workspace=workspace, user=member, role='member')
+        WorkspaceMemberFactory(workspace=other_ws, user=member, role='member')
+
+        WorkspaceMemberService.leave(member, workspace.id)
+
+        member.refresh_from_db()
+        self.assertEqual(member.current_workspace, other_ws)
+
+    def test_remove_member_success(self):
+        """Test successfully removing a member from workspace."""
+        workspace = WorkspaceFactory()
+        owner = UserFactory()
+        member = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
+        WorkspaceMemberFactory(workspace=workspace, user=member, role='member')
+
+        WorkspaceMemberService.remove_member(owner, workspace.id, member.id, 'owner')
+
+        self.assertFalse(WorkspaceMember.objects.filter(workspace=workspace, user=member).exists())
+
+    def test_remove_member_self_removal_blocked(self):
+        """Test that removing yourself raises WorkspaceMemberCannotRemoveSelfError."""
+        workspace = WorkspaceFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+
+        with self.assertRaises(WorkspaceMemberCannotRemoveSelfError):
+            WorkspaceMemberService.remove_member(admin, workspace.id, admin.id, 'admin')
+
+    def test_remove_member_owner_blocked(self):
+        """Test that removing owner raises WorkspaceOwnerRemoveError."""
+        workspace = WorkspaceFactory()
+        owner = UserFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+
+        with self.assertRaises(WorkspaceOwnerRemoveError):
+            WorkspaceMemberService.remove_member(admin, workspace.id, owner.id, 'admin')
+
+    def test_update_role_success(self):
+        """Test successfully updating a member's role."""
+        workspace = WorkspaceFactory()
+        owner = UserFactory()
+        member = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
+        membership = WorkspaceMemberFactory(workspace=workspace, user=member, role='member')
+
+        result = WorkspaceMemberService.update_role(owner, workspace.id, member.id, 'admin', 'owner')
+
+        self.assertEqual(result['old_role'], 'member')
+        self.assertEqual(result['new_role'], 'admin')
+        membership.refresh_from_db()
+        self.assertEqual(membership.role, 'admin')
+
+    def test_update_role_own_role_blocked(self):
+        """Test that changing own role raises WorkspaceMemberCannotChangeOwnRoleError."""
+        workspace = WorkspaceFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+
+        with self.assertRaises(WorkspaceMemberCannotChangeOwnRoleError):
+            WorkspaceMemberService.update_role(admin, workspace.id, admin.id, 'member', 'admin')
+
+    def test_update_role_owner_blocked(self):
+        """Test that changing owner's role raises WorkspaceOwnerRoleChangeError."""
+        workspace = WorkspaceFactory()
+        owner = UserFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+
+        with self.assertRaises(WorkspaceOwnerRoleChangeError):
+            WorkspaceMemberService.update_role(admin, workspace.id, owner.id, 'admin', 'admin')
+
+    def test_reset_password_success(self):
+        """Test successfully resetting a member's password."""
+        workspace = WorkspaceFactory()
+        owner = UserFactory()
+        member = UserFactory(password='oldpassword')
+        WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
+        WorkspaceMemberFactory(workspace=workspace, user=member, role='member')
+
+        result = WorkspaceMemberService.reset_password(owner, workspace.id, member.id, 'newpassword123', 'owner')
+
+        self.assertEqual(result['message'], 'Password reset successfully')
+        member.refresh_from_db()
+        self.assertTrue(member.check_password('newpassword123'))
+
+    def test_reset_password_own_blocked(self):
+        """Test that resetting own password raises WorkspaceMemberCannotResetOwnPasswordError."""
+        workspace = WorkspaceFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+
+        with self.assertRaises(WorkspaceMemberCannotResetOwnPasswordError):
+            WorkspaceMemberService.reset_password(admin, workspace.id, admin.id, 'newpass', 'admin')
+
+    def test_reset_password_owner_blocked(self):
+        """Test that resetting owner's password raises WorkspaceOwnerPasswordResetError."""
+        workspace = WorkspaceFactory()
+        owner = UserFactory()
+        admin = UserFactory()
+        WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
+        WorkspaceMemberFactory(workspace=workspace, user=admin, role='admin')
+
+        with self.assertRaises(WorkspaceOwnerPasswordResetError):
+            WorkspaceMemberService.reset_password(admin, workspace.id, owner.id, 'newpass', 'admin')

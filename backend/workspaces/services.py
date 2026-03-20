@@ -1,5 +1,7 @@
 """Business logic for the workspaces app."""
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction as db_transaction
 
 from budget_accounts.models import BudgetAccount
@@ -7,8 +9,22 @@ from workspaces.demo_fixtures import create_demo_fixtures
 from workspaces.exceptions import (
     CurrencyDuplicateSymbolError,
     CurrencyNotFoundError,
+    WorkspaceMemberAdminInsufficientError,
+    WorkspaceMemberAlreadyExistsError,
+    WorkspaceMemberCannotChangeOwnRoleError,
+    WorkspaceMemberCannotRemoveSelfError,
+    WorkspaceMemberCannotResetOwnPasswordError,
+    WorkspaceMemberLimitReachedError,
+    WorkspaceMemberNotFoundError,
+    WorkspaceMemberPasswordRequiredError,
+    WorkspaceOwnerCannotLeaveError,
+    WorkspaceOwnerPasswordResetError,
+    WorkspaceOwnerRemoveError,
+    WorkspaceOwnerRoleChangeError,
 )
 from workspaces.models import Currency, Role, Workspace, WorkspaceMember
+
+User = get_user_model()
 
 DEFAULT_CURRENCIES = [
     ('USD', 'US Dollar'),
@@ -172,3 +188,215 @@ class CurrencyService:
             Currency.objects.create(workspace=workspace, symbol=symbol, name=name)
             for symbol, name in DEFAULT_CURRENCIES
         ]
+
+
+class WorkspaceMemberService:
+    @staticmethod
+    def get_member(workspace_id: int, user_id: int) -> WorkspaceMember | None:
+        """Get a workspace member by user ID within a workspace."""
+        return WorkspaceMember.objects.filter(workspace_id=workspace_id, user_id=user_id).first()
+
+    @staticmethod
+    @db_transaction.atomic
+    def add_member(user, workspace_id: int, data) -> dict:
+        """
+        Add a member to the workspace.
+
+        Behavior:
+        - If user exists: Add them to workspace (password ignored)
+        - If user doesn't exist: Create user with provided password, add to workspace
+
+        Raises domain exceptions on error.
+        """
+        current_member_count = WorkspaceMember.objects.filter(workspace_id=workspace_id).count()
+        if current_member_count >= settings.WORKSPACE_MAX_MEMBERS:
+            raise WorkspaceMemberLimitReachedError()
+
+        existing_user = User.objects.filter(email=data.email).first()
+
+        if existing_user:
+            existing_member = WorkspaceMember.objects.filter(
+                workspace_id=workspace_id,
+                user_id=existing_user.id,
+            ).first()
+
+            if existing_member:
+                raise WorkspaceMemberAlreadyExistsError()
+
+            new_member = WorkspaceMember.objects.create(
+                workspace_id=workspace_id,
+                user_id=existing_user.id,
+                role=data.role,
+            )
+
+            return {
+                'message': f'Existing user {data.email} added to workspace',
+                'user_id': existing_user.id,
+                'member_id': new_member.id,
+                'is_new_user': False,
+            }
+        else:
+            if not data.password:
+                raise WorkspaceMemberPasswordRequiredError()
+
+            new_user = User.objects.create_user(
+                email=data.email,
+                password=data.password,
+                full_name=data.full_name,
+                current_workspace_id=workspace_id,
+                is_active=True,
+            )
+
+            new_member = WorkspaceMember.objects.create(
+                workspace_id=workspace_id,
+                user_id=new_user.id,
+                role=data.role,
+            )
+
+            return {
+                'message': f'User {data.email} created and added to workspace',
+                'user_id': new_user.id,
+                'member_id': new_member.id,
+                'is_new_user': True,
+            }
+
+    @staticmethod
+    @db_transaction.atomic
+    def leave(user, workspace_id: int) -> dict:
+        """
+        Leave the workspace (remove yourself).
+
+        Business rules:
+        - Owner cannot leave (must transfer ownership first)
+        - Auto-switches current_workspace if needed
+        """
+        member = WorkspaceMember.objects.select_for_update().filter(workspace_id=workspace_id, user_id=user.id).first()
+        if not member:
+            raise WorkspaceMemberNotFoundError()
+
+        if member.role == Role.OWNER:
+            raise WorkspaceOwnerCannotLeaveError()
+
+        member.delete()
+
+        if user.current_workspace_id == workspace_id:
+            next_workspace = Workspace.objects.filter(members__user=user).exclude(id=workspace_id).first()
+            user.current_workspace = next_workspace
+            user.save(update_fields=['current_workspace'])
+
+        return {'message': 'Successfully left workspace'}
+
+    @staticmethod
+    def update_role(user, workspace_id: int, member_user_id: int, new_role: str, current_role: str) -> dict:
+        """
+        Update a member's role in the workspace.
+
+        Business rules:
+        - Cannot change owner role (only one owner per workspace)
+        - Admin cannot change other admins or owner
+        - Cannot change your own role
+        """
+        member = WorkspaceMember.objects.filter(
+            workspace_id=workspace_id,
+            user_id=member_user_id,
+        ).first()
+
+        if not member:
+            raise WorkspaceMemberNotFoundError()
+
+        if member_user_id == user.id:
+            raise WorkspaceMemberCannotChangeOwnRoleError()
+
+        if member.role == Role.OWNER:
+            raise WorkspaceOwnerRoleChangeError()
+
+        if current_role == Role.ADMIN and member.role == Role.ADMIN:
+            raise WorkspaceMemberAdminInsufficientError('change role of')
+
+        old_role = member.role
+        member.role = new_role
+        member.save()
+
+        return {
+            'message': 'Role updated successfully',
+            'user_id': member_user_id,
+            'old_role': old_role,
+            'new_role': new_role,
+        }
+
+    @staticmethod
+    @db_transaction.atomic
+    def remove_member(user, workspace_id: int, member_user_id: int, current_role: str) -> None:
+        """
+        Remove a member from the workspace.
+
+        Business rules:
+        - Cannot remove owner
+        - Admin cannot remove other admins
+        - Cannot remove yourself (use leave endpoint instead)
+        """
+        member = WorkspaceMember.objects.filter(
+            workspace_id=workspace_id,
+            user_id=member_user_id,
+        ).first()
+
+        if not member:
+            raise WorkspaceMemberNotFoundError()
+
+        if member_user_id == user.id:
+            raise WorkspaceMemberCannotRemoveSelfError()
+
+        if member.role == Role.OWNER:
+            raise WorkspaceOwnerRemoveError()
+
+        if current_role == Role.ADMIN and member.role == Role.ADMIN:
+            raise WorkspaceMemberAdminInsufficientError('remove')
+
+        member.delete()
+
+        removed_user = User.objects.filter(id=member_user_id).first()
+        if removed_user and removed_user.current_workspace_id == workspace_id:
+            next_workspace = Workspace.objects.filter(members__user=removed_user).first()
+            removed_user.current_workspace = next_workspace
+            removed_user.save(update_fields=['current_workspace'])
+
+    @staticmethod
+    def reset_password(user, workspace_id: int, target_user_id: int, new_password: str, current_role: str) -> dict:
+        """
+        Reset a workspace member's password (admin action).
+
+        Security rules:
+        - Owner can reset password for: admin, member, viewer
+        - Admin can reset password for: member, viewer only (NOT other admins)
+        - Cannot reset own password (use change password feature instead)
+        - Cannot reset owner's password
+        """
+        target_member = WorkspaceMember.objects.filter(
+            workspace_id=workspace_id,
+            user_id=target_user_id,
+        ).first()
+
+        if not target_member:
+            raise WorkspaceMemberNotFoundError()
+
+        if target_user_id == user.id:
+            raise WorkspaceMemberCannotResetOwnPasswordError()
+
+        if target_member.role == Role.OWNER:
+            raise WorkspaceOwnerPasswordResetError()
+
+        if current_role == Role.ADMIN and target_member.role == Role.ADMIN:
+            raise WorkspaceMemberAdminInsufficientError('reset password of')
+
+        target_user = User.objects.filter(id=target_user_id).first()
+        if not target_user:
+            raise WorkspaceMemberNotFoundError()
+
+        target_user.set_password(new_password)
+        target_user.save()
+
+        return {
+            'message': 'Password reset successfully',
+            'user_id': target_user_id,
+            'email': target_user.email,
+        }

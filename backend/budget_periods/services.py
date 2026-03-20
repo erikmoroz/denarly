@@ -30,7 +30,8 @@ class BudgetPeriodService:
         """Get a period by ID, raising BudgetPeriodNotFoundError if not found."""
         period = (
             BudgetPeriod.objects.select_related('budget_account')
-            .filter(id=period_id, budget_account__workspace_id=workspace_id)
+            .for_workspace(workspace_id)
+            .filter(id=period_id)
             .first()
         )
         if not period:

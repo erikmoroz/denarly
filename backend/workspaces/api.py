@@ -1,8 +1,6 @@
 """Django-Ninja API endpoints for workspaces app."""
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db import transaction as db_transaction
 from django.http import HttpRequest
 from ninja import Router
 from ninja.errors import HttpError
@@ -10,6 +8,7 @@ from ninja.errors import HttpError
 from common.auth import JWTAuth, WorkspaceJWTAuth
 from common.permissions import require_role
 from core.schemas import MessageOut
+from workspaces.exceptions import WorkspaceNotFoundError
 from workspaces.models import ADMIN_ROLES, Role, Workspace, WorkspaceMember
 from workspaces.schemas import (
     CurrencyCreate,
@@ -22,7 +21,7 @@ from workspaces.schemas import (
     WorkspaceOut,
     WorkspaceUpdate,
 )
-from workspaces.services import CurrencyService, WorkspaceService
+from workspaces.services import CurrencyService, WorkspaceMemberService, WorkspaceService
 
 router = Router(tags=['Workspaces'])
 User = get_user_model()
@@ -66,27 +65,23 @@ def validate_workspace_access(workspace_id: int, user) -> Workspace:
     """Validate that the workspace exists and the user is a member of it."""
     workspace = Workspace.objects.filter(id=workspace_id).first()
     if not workspace:
-        raise HttpError(404, 'Workspace not found')
+        raise WorkspaceNotFoundError()
 
     member = WorkspaceMember.objects.filter(
         workspace_id=workspace_id,
         user=user,
     ).first()
     if not member:
-        raise HttpError(404, 'Workspace not found')
+        raise WorkspaceNotFoundError()
 
     return workspace
 
 
 def _workspace_response(workspace: Workspace, role: str) -> dict:
-    """Build a WorkspaceOut-compatible dict without monkey-patching the ORM instance."""
-    return {
-        'id': workspace.id,
-        'name': workspace.name,
-        'owner_id': workspace.owner_id,
-        'created_at': workspace.created_at,
-        'user_role': role,
-    }
+    """Build a WorkspaceOut-compatible dict using schema validation."""
+    data = WorkspaceOut.model_validate(workspace).model_dump()
+    data['user_role'] = role
+    return data
 
 
 # =============================================================================
@@ -206,7 +201,7 @@ def list_workspace_members(request: HttpRequest, workspace_id: int):
     ]
 
 
-@router.post('/{workspace_id}/members/add', response={201: dict, 400: dict}, auth=JWTAuth())
+@router.post('/{workspace_id}/members/add', response={201: dict}, auth=JWTAuth())
 def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: WorkspaceMemberAdd):
     """
     Add a new member to the workspace.
@@ -216,73 +211,9 @@ def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: Works
     - If user doesn't exist: Create user with provided password, add to workspace
     """
     user = request.auth
-
-    # Validate workspace access
     validate_workspace_access(workspace_id, user)
-
-    # Check current user has admin/owner role
     require_role(user, workspace_id, ADMIN_ROLES)
-
-    # Check workspace member limit (15 members maximum)
-    current_member_count = WorkspaceMember.objects.filter(workspace_id=workspace_id).count()
-
-    if current_member_count >= settings.WORKSPACE_MAX_MEMBERS:
-        return 400, {
-            'detail': f'Workspace member limit reached. Maximum {settings.WORKSPACE_MAX_MEMBERS} members allowed per workspace.'
-        }
-
-    # Check if user already exists
-    existing_user = User.objects.filter(email=data.email).first()
-
-    if existing_user:
-        # Check if already a member of this workspace
-        existing_member = WorkspaceMember.objects.filter(
-            workspace_id=workspace_id,
-            user_id=existing_user.id,
-        ).first()
-
-        if existing_member:
-            return 400, {'detail': 'User is already a member of this workspace'}
-
-        # Add existing user to workspace. Do not change their active workspace; they choose when to switch.
-        new_member = WorkspaceMember.objects.create(
-            workspace_id=workspace_id,
-            user_id=existing_user.id,
-            role=data.role,
-        )
-
-        return 201, {
-            'message': f'Existing user {data.email} added to workspace',
-            'user_id': existing_user.id,
-            'member_id': new_member.id,
-            'is_new_user': False,
-        }
-    else:
-        # Create new user with provided password
-        if not data.password:
-            return 400, {'detail': 'Password is required when adding a new user.'}
-        new_user = User.objects.create_user(
-            email=data.email,
-            password=data.password,
-            full_name=data.full_name,
-            # New user has no workspace yet — set it to this workspace so they can log in immediately.
-            current_workspace_id=workspace_id,
-            is_active=True,
-        )
-
-        # Add to workspace
-        new_member = WorkspaceMember.objects.create(
-            workspace_id=workspace_id,
-            user_id=new_user.id,
-            role=data.role,
-        )
-
-        return 201, {
-            'message': f'User {data.email} created and added to workspace',
-            'user_id': new_user.id,
-            'member_id': new_member.id,
-            'is_new_user': True,
-        }
+    return 201, WorkspaceMemberService.add_member(user, workspace_id, data)
 
 
 @router.post('/{workspace_id}/members/leave', response=MessageOut, auth=JWTAuth())
@@ -293,24 +224,7 @@ def leave_workspace(request: HttpRequest, workspace_id: int):
     Business rules:
     - Owner cannot leave (must transfer ownership first)
     """
-    user = request.auth
-
-    with db_transaction.atomic():
-        member = WorkspaceMember.objects.select_for_update().filter(workspace_id=workspace_id, user_id=user.id).first()
-        if not member:
-            raise HttpError(404, 'You are not a member of this workspace')
-
-        if member.role == Role.OWNER:
-            raise HttpError(400, 'Workspace owner cannot leave. Transfer ownership first or delete the workspace.')
-
-        member.delete()
-
-        if user.current_workspace_id == workspace_id:
-            next_workspace = Workspace.objects.filter(members__user=user).exclude(id=workspace_id).first()
-            user.current_workspace = next_workspace
-            user.save(update_fields=['current_workspace'])
-
-    return {'message': 'Successfully left workspace'}
+    return WorkspaceMemberService.leave(request.auth, workspace_id)
 
 
 @router.put('/{workspace_id}/members/{member_user_id}/role', response=dict, auth=JWTAuth())
@@ -329,45 +243,9 @@ def update_member_role(
     - Cannot change your own role
     """
     user = request.auth
-
-    # Validate workspace access
     validate_workspace_access(workspace_id, user)
-
-    # Check current user has admin/owner role
     current_role = require_role(user, workspace_id, ADMIN_ROLES)
-
-    # Get the member record
-    member = WorkspaceMember.objects.filter(
-        workspace_id=workspace_id,
-        user_id=member_user_id,
-    ).first()
-
-    if not member:
-        raise HttpError(404, 'Member not found in this workspace')
-
-    # Cannot change your own role
-    if member_user_id == user.id:
-        raise HttpError(400, 'Cannot change your own role')
-
-    # Cannot change owner role
-    if member.role == Role.OWNER:
-        raise HttpError(400, "Cannot change the owner's role")
-
-    # Admin cannot change other admin's role
-    if current_role == Role.ADMIN and member.role == Role.ADMIN:
-        raise HttpError(403, "Admin cannot change another admin's role. Owner required.")
-
-    # Update the role
-    old_role = member.role
-    member.role = data.role
-    member.save()
-
-    return {
-        'message': 'Role updated successfully',
-        'user_id': member_user_id,
-        'old_role': old_role,
-        'new_role': data.role,
-    }
+    return WorkspaceMemberService.update_role(user, workspace_id, member_user_id, data.role, current_role)
 
 
 @router.delete('/{workspace_id}/members/{member_user_id}', response={204: None}, auth=JWTAuth())
@@ -381,43 +259,9 @@ def remove_member_from_workspace(request: HttpRequest, workspace_id: int, member
     - Cannot remove yourself (use leave endpoint instead)
     """
     user = request.auth
-
-    # Validate workspace access
     validate_workspace_access(workspace_id, user)
-
-    # Check current user has admin/owner role
     current_role = require_role(user, workspace_id, ADMIN_ROLES)
-
-    # Get the member record
-    member = WorkspaceMember.objects.filter(
-        workspace_id=workspace_id,
-        user_id=member_user_id,
-    ).first()
-
-    if not member:
-        raise HttpError(404, 'Member not found in this workspace')
-
-    # Cannot remove yourself
-    if member_user_id == user.id:
-        raise HttpError(400, 'Cannot remove yourself. Use the leave endpoint instead.')
-
-    # Cannot remove owner
-    if member.role == Role.OWNER:
-        raise HttpError(400, 'Cannot remove the workspace owner')
-
-    # Admin cannot remove other admin
-    if current_role == Role.ADMIN and member.role == Role.ADMIN:
-        raise HttpError(403, 'Admin cannot remove another admin. Owner required.')
-
-    with db_transaction.atomic():
-        member.delete()
-
-        removed_user = User.objects.filter(id=member_user_id).first()
-        if removed_user and removed_user.current_workspace_id == workspace_id:
-            next_workspace = Workspace.objects.filter(members__user=removed_user).first()
-            removed_user.current_workspace = next_workspace
-            removed_user.save(update_fields=['current_workspace'])
-
+    WorkspaceMemberService.remove_member(user, workspace_id, member_user_id, current_role)
     return 204, None
 
 
@@ -438,44 +282,6 @@ def reset_member_password(
     - Cannot reset owner's password
     """
     user = request.auth
-
-    # Validate workspace access
     validate_workspace_access(workspace_id, user)
-
-    # Check current user has admin/owner role
     current_role = require_role(user, workspace_id, ADMIN_ROLES)
-
-    # Get the target member's record
-    target_member = WorkspaceMember.objects.filter(
-        workspace_id=workspace_id,
-        user_id=user_id,
-    ).first()
-
-    if not target_member:
-        raise HttpError(404, 'Member not found in this workspace')
-
-    # Cannot reset own password
-    if user_id == user.id:
-        raise HttpError(400, 'Cannot reset your own password. Use the change password feature instead.')
-
-    # Cannot reset owner's password
-    if target_member.role == Role.OWNER:
-        raise HttpError(400, "Cannot reset the owner's password")
-
-    # Admin cannot reset another admin's password
-    if current_role == Role.ADMIN and target_member.role == Role.ADMIN:
-        raise HttpError(403, "Admin cannot reset another admin's password. Owner required.")
-
-    # Get the target user and update password
-    target_user = User.objects.filter(id=user_id).first()
-    if not target_user:
-        raise HttpError(404, 'User not found')
-
-    target_user.set_password(data.new_password)
-    target_user.save()
-
-    return {
-        'message': 'Password reset successfully',
-        'user_id': user_id,
-        'email': target_user.email,
-    }
+    return WorkspaceMemberService.reset_password(user, workspace_id, user_id, data.new_password, current_role)

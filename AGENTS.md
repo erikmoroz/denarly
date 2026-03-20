@@ -345,6 +345,16 @@ Transaction.objects.for_workspace(workspace_id)
 
 All workspace-scoped models have `WORKSPACE_FILTER` defined.
 
+### List Endpoints Return Empty Arrays for Cross-Workspace Resources
+
+When a list endpoint receives a `budget_period_id` or similar filter that references a resource in another workspace, it returns an empty array (`[]`) rather than 404. This is a deliberate security choice to prevent leaking whether resource IDs exist in other workspaces.
+
+Examples:
+- `GET /api/transactions?current_date=...` returns `[]` when no period matches
+- `GET /api/categories?budget_period_id=...` returns `[]` when the period belongs to another workspace
+
+Do not "fix" these to return 404 — the empty array behavior is intentional.
+
 ## GDPR & Data Integrity Rules
 
 > **When adding or removing a Django model**, always check `backend/users/services.py`:

@@ -245,6 +245,16 @@ transactions = Transaction.objects.for_workspace(workspace_id).filter(type='expe
 
 Each model defines a `WORKSPACE_FILTER` class attribute specifying the ORM lookup path to the workspace.
 
+#### List Endpoints Security Behavior
+
+List endpoints return empty arrays (`[]`) rather than 404 when a filter references a resource in another workspace. This prevents leaking whether resource IDs exist in other workspaces.
+
+Examples:
+- `TransactionService.list()` returns `[]` when `current_date` matches no period
+- `CategoryService.list()` returns `[]` when `budget_period_id` doesn't belong to the workspace
+
+This is intentional security behavior — do not change to return 404.
+
 ## Security Architecture
 
 ### Authentication Layers
