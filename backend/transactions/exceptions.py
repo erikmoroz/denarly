@@ -8,9 +8,18 @@ class TransactionNotFoundError(NotFoundError):
     default_code = 'not_found'
 
 
-class TransactionPeriodNotFoundError(ValidationError):
-    default_message = 'No active budget period for the transaction date'
+class TransactionPeriodNotFoundError(NotFoundError):
+    """Raised when an explicit budget_period_id does not exist in the workspace."""
+
+    default_message = 'Budget period not found'
     default_code = 'period_not_found'
+
+
+class TransactionNoActivePeriodError(ValidationError):
+    """Raised when no budget period covers the transaction date."""
+
+    default_message = 'No active budget period for the transaction date'
+    default_code = 'no_active_period'
 
 
 class TransactionCategoryNotFoundError(ValidationError):

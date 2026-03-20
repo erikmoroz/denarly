@@ -74,6 +74,8 @@ class WorkspaceService:
 
         affected_user_ids = [u.id for u in affected_users] + [user.id]
 
+        # Lock user rows to prevent concurrent workspace switches while we update current_workspace.
+        # The result is intentionally discarded — only the SELECT FOR UPDATE side-effect matters.
         list(UserModel.objects.filter(id__in=affected_user_ids).select_for_update())
 
         memberships = (

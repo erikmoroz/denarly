@@ -578,13 +578,7 @@ class TestLeaveWorkspace(WorkspaceTestCase):
     """Tests for POST /backend/workspaces/{workspace_id}/members/leave."""
 
     def test_leave_workspace_as_member_success(self):
-        """Test leaving workspace as member (must have another workspace)."""
-        other_workspace = WorkspaceFactory(name='Member Other Workspace')
-        WorkspaceMemberFactory(
-            workspace=other_workspace,
-            user=self.member_user,
-            role='member',
-        )
+        """Test leaving workspace as member."""
         self.member_user.current_workspace = self.workspace
         self.member_user.save()
 
@@ -602,10 +596,10 @@ class TestLeaveWorkspace(WorkspaceTestCase):
         )
 
         self.member_user.refresh_from_db()
-        self.assertEqual(self.member_user.current_workspace_id, other_workspace.id)
+        self.assertIsNone(self.member_user.current_workspace_id)
 
-    def test_leave_only_workspace_as_member_fails(self):
-        """Test that member cannot leave their only workspace."""
+    def test_leave_only_workspace_as_member_sets_current_workspace_to_none(self):
+        """Member can leave their only workspace; current_workspace becomes None."""
         self.member_user.current_workspace = self.workspace
         self.member_user.save()
 
@@ -613,7 +607,10 @@ class TestLeaveWorkspace(WorkspaceTestCase):
         headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
 
         self.post(f'/api/workspaces/{self.workspace.id}/members/leave', {}, **headers)
-        self.assertStatus(400)
+        self.assertStatus(200)
+
+        self.member_user.refresh_from_db()
+        self.assertIsNone(self.member_user.current_workspace_id)
 
     def test_leave_workspace_as_owner_fails(self):
         """Test that owner cannot leave workspace."""

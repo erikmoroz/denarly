@@ -13,6 +13,7 @@ from common.services.base import get_or_create_period_balance, get_workspace_per
 from transactions.exceptions import (
     TransactionCategoryNotFoundError,
     TransactionImportError,
+    TransactionNoActivePeriodError,
     TransactionNotFoundError,
     TransactionPeriodNotFoundError,
 )
@@ -62,7 +63,7 @@ class TransactionService:
         if period_id:
             period = get_workspace_period(period_id, workspace_id)
             if not period:
-                raise TransactionPeriodNotFoundError('Budget period not found')
+                raise TransactionPeriodNotFoundError()
             return period_id
         period = (
             BudgetPeriod.objects.select_related('budget_account')
@@ -74,7 +75,7 @@ class TransactionService:
             .first()
         )
         if not period:
-            raise TransactionPeriodNotFoundError('Budget period not found')
+            raise TransactionNoActivePeriodError()
         return period.id
 
     @staticmethod
