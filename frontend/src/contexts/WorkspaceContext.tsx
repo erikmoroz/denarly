@@ -1,5 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
 import { useAuth } from './AuthContext';
 import { workspacesApi, workspaceMembersApi } from '../api/client';
 import type { Workspace, WorkspaceMember, Role } from '../types';
@@ -34,7 +35,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     queryFn: workspacesApi.getCurrent,
     enabled: isAuthenticated,
     retry: (failureCount, error) => {
-      const status = (error as any)?.response?.status
+      const status = (error as AxiosError)?.response?.status
       if (status === 400 || status === 403) return false
       return failureCount < 3
     },
@@ -49,7 +50,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     queryFn: workspacesApi.list,
     enabled: isAuthenticated,
     retry: (failureCount, error) => {
-      const status = (error as any)?.response?.status
+      const status = (error as AxiosError)?.response?.status
       if (status === 401) return false
       return failureCount < 3
     },
@@ -85,7 +86,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       'period-balances', 'reports',
     ];
     for (const key of dataKeys) {
-      queryClient.removeQueries({ queryKey: [key] });
+      queryClient.invalidateQueries({ queryKey: [key] });
     }
   };
 

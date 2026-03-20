@@ -15,6 +15,7 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
   const [isCreating, setIsCreating] = useState(false)
   const [newName, setNewName] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [switchingToId, setSwitchingToId] = useState<number | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
       setIsOpen(false)
       return
     }
-    setIsSubmitting(true)
+    setSwitchingToId(ws.id)
     try {
       await switchWorkspace(ws.id)
       setIsOpen(false)
@@ -53,7 +54,7 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
       console.error('Failed to switch workspace:', error)
       toast.error(getApiErrorMessage(error, 'Failed to switch workspace'))
     } finally {
-      setIsSubmitting(false)
+      setSwitchingToId(null)
     }
   }
 
@@ -155,13 +156,18 @@ export default function WorkspaceSelector({ onOpenSettings }: WorkspaceSelectorP
                 <button
                   key={ws.id}
                   onClick={() => handleSwitch(ws)}
-                  disabled={isSubmitting}
+                  disabled={switchingToId !== null}
                   className={`flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
                     ws.id === workspace?.id ? 'bg-gray-50' : ''
                   }`}
                 >
                   {ws.id === workspace?.id ? (
                     <HiCheck className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                  ) : switchingToId === ws.id ? (
+                    <svg className="animate-spin h-4 w-4 text-blue-600 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
                   ) : (
                     <div className="h-4 w-4" />
                   )}

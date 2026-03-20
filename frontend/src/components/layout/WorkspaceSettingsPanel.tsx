@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { HiTrash, HiExclamationTriangle } from 'react-icons/hi2'
 import { HiX } from 'react-icons/hi'
 import { useWorkspace } from '../../contexts/WorkspaceContext'
@@ -16,14 +16,11 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
   const [isSaving, setIsSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const prevWorkspaceIdRef = useRef(workspace?.id)
 
   useEffect(() => {
-    if (workspace?.id !== prevWorkspaceIdRef.current) {
-      setNewName(workspace?.name || '')
-      prevWorkspaceIdRef.current = workspace?.id
-    }
-  }, [workspace?.id, workspace?.name])
+    setNewName(workspace?.name || '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.id])
 
   useEffect(() => {
     if (!isOpen) {
@@ -59,10 +56,11 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
 
   const handleDelete = async () => {
     if (!workspace || !canDelete) return
+    const deletedName = workspace.name
     setIsDeleting(true)
     try {
       await deleteWorkspace(workspace.id)
-      toast.success('Workspace deleted')
+      toast.success(`"${deletedName}" deleted`)
       setShowDeleteConfirm(false)
       onClose()
     } catch (error) {
@@ -75,16 +73,18 @@ export default function WorkspaceSettingsPanel({ isOpen, onClose }: WorkspaceSet
   if (!isOpen || !workspace) return null
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="ws-settings-title">
       <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} />
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={onClose} aria-hidden="true" />
 
         <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
           <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Workspace Settings</h3>
+              <h3 id="ws-settings-title" className="text-lg font-semibold text-gray-900">Workspace Settings</h3>
               <button
                 onClick={onClose}
+                autoFocus
+                aria-label="Close settings"
                 className="rounded-md text-gray-400 hover:text-gray-500"
               >
                 <HiX className="h-5 w-5" />
