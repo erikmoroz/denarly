@@ -59,10 +59,10 @@ def delete_currency(request: HttpRequest, currency_id: int):
 
 
 def _workspace_response(workspace: Workspace, role: str) -> dict:
-    """Build a WorkspaceOut-compatible dict using schema validation."""
-    data = WorkspaceOut.model_validate(workspace).model_dump()
-    data['user_role'] = role
-    return data
+    """Build a WorkspaceOut-compatible dict with user_role included."""
+    ws = WorkspaceOut.model_validate(workspace)
+    ws.user_role = role
+    return ws.model_dump()
 
 
 # =============================================================================

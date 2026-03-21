@@ -145,6 +145,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     refetchMembers();
   };
 
+  const filteredWorkspaceError = (() => {
+    if (!workspaceError) return null;
+    const status = (workspaceError as AxiosError)?.response?.status;
+    if (status === 400 || status === 403) return null;
+    return workspaceError;
+  })();
+
   return (
     <WorkspaceContext.Provider
       value={{
@@ -153,7 +160,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         currentMembership,
         userRole,
         isLoading: workspaceLoading || membersLoading || workspacesLoading,
-        error: (workspaceError || membersError) as Error | null,
+        error: (filteredWorkspaceError || membersError) as Error | null,
         refetch,
         switchWorkspace,
         createWorkspace,
