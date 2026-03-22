@@ -46,8 +46,9 @@ Shared utilities used across the project:
   - `JWTAuth` - Django-Ninja security class for token validation
   - `create_access_token()` - Generates JWT with user_id, email, current_workspace_id
   - `decode_access_token()` - Validates and decodes JWT
-  - `user_to_schema()` - Converts User model to API schema
-  - `can_reset_password()` - Role-based password reset rules
+   - `user_to_schema()` - Converts User model to API schema
+
+- **`WorkspaceMemberService.reset_password()`** in `workspaces/services.py` — admin password reset with role hierarchy enforcement
 
 - **`services/base.py`**: Shared service helpers
   - `require_role(user, workspace_id, allowed_roles)` - Raises 403 if role not allowed

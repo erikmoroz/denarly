@@ -353,10 +353,14 @@ class WorkspaceMemberService:
         - Admin cannot remove other admins
         - Cannot remove yourself (use leave endpoint instead)
         """
-        member = WorkspaceMember.objects.filter(
-            workspace_id=workspace_id,
-            user_id=member_user_id,
-        ).first()
+        member = (
+            WorkspaceMember.objects.select_for_update()
+            .filter(
+                workspace_id=workspace_id,
+                user_id=member_user_id,
+            )
+            .first()
+        )
 
         if not member:
             raise WorkspaceMemberNotFoundError()

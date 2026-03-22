@@ -61,8 +61,7 @@ def delete_currency(request: HttpRequest, currency_id: int):
 def _workspace_response(workspace: Workspace, role: str) -> WorkspaceOut:
     """Build a WorkspaceOut-compatible response with user_role included."""
     ws = WorkspaceOut.model_validate(workspace)
-    ws.user_role = role
-    return ws
+    return ws.model_copy(update={'user_role': role})
 
 
 # =============================================================================

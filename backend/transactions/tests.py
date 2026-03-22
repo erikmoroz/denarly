@@ -237,6 +237,12 @@ class TestListTransactions(TransactionsTestCase):
         self.get(f'/api/transactions?budget_period_id={self.period.id}')
         self.assertStatus(401)
 
+    def test_list_transactions_no_matching_period_returns_empty(self):
+        """When current_date matches no period, return empty list (not 404)."""
+        data = self.get('/api/transactions?current_date=2099-01-01', **self.auth_headers())
+        self.assertStatus(200)
+        self.assertEqual(data, [])
+
 
 # =============================================================================
 # Get Transaction Tests

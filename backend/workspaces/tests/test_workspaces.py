@@ -382,6 +382,16 @@ class TestAddMemberToWorkspace(WorkspaceTestCase):
         self.post(f'/api/workspaces/{self.workspace.id}/members/add', payload)
         self.assertStatus(401)
 
+    def test_add_new_user_with_short_password_fails(self):
+        """New user with password shorter than 8 chars should return 422."""
+        payload = {
+            'email': 'short_pwd@example.com',
+            'password': 'abc',
+            'role': 'member',
+        }
+        self.post(f'/api/workspaces/{self.workspace.id}/members/add', payload, **self.auth_headers())
+        self.assertStatus(422)
+
 
 # =============================================================================
 # Update Member Role Tests
@@ -1001,6 +1011,31 @@ class TestWorkspaceJWTAuth400(APIClientMixin, TestCase):
             with self.subTest(endpoint=endpoint):
                 self.get(endpoint, **headers)
                 self.assertStatus(400)
+
+    def test_write_endpoints_return_400_without_active_workspace(self):
+        """Write endpoints should also return 400 (not 403) when no workspace is active."""
+        from common.auth import create_access_token
+        from common.tests.factories import UserFactory
+
+        user = UserFactory(current_workspace=None)
+        token = create_access_token(user)
+        headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+
+        self.post(
+            '/api/transactions',
+            {
+                'date': '2025-01-15',
+                'description': 'x',
+                'amount': '10',
+                'currency': 'PLN',
+                'type': 'expense',
+            },
+            **headers,
+        )
+        self.assertStatus(400)
+
+        self.delete('/api/budget-accounts/1', **headers)
+        self.assertStatus(400)
 
 
 class TestWorkspaceJWTAuthMembership(APIClientMixin, TestCase):
