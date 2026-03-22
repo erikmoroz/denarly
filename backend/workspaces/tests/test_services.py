@@ -20,6 +20,7 @@ from workspaces.exceptions import (
     WorkspaceMemberCannotResetOwnPasswordError,
     WorkspaceMemberLimitReachedError,
     WorkspaceMemberPasswordRequiredError,
+    WorkspaceNotFoundError,
     WorkspaceOwnerCannotLeaveError,
     WorkspaceOwnerPasswordResetError,
     WorkspaceOwnerRemoveError,
