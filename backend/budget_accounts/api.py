@@ -3,7 +3,7 @@
 from django.http import HttpRequest
 from ninja import Query, Router
 
-from budget_accounts.schemas import BudgetAccountCreate, BudgetAccountOut, BudgetAccountUpdate
+from budget_accounts.schemas import BudgetAccountArchive, BudgetAccountCreate, BudgetAccountOut, BudgetAccountUpdate
 from budget_accounts.services import BudgetAccountService
 from common.auth import WorkspaceJWTAuth
 from common.permissions import require_role
@@ -57,9 +57,9 @@ def delete_budget_account(request: HttpRequest, account_id: int):
 
 
 @router.patch('/{account_id}/archive', response=BudgetAccountOut, auth=WorkspaceJWTAuth())
-def toggle_archive_budget_account(request: HttpRequest, account_id: int):
-    """Archive/unarchive a budget account (toggle is_active)."""
+def set_archive_status_budget_account(request: HttpRequest, account_id: int, data: BudgetAccountArchive):
+    """Archive or unarchive a budget account (set is_active)."""
     user = request.auth
     workspace_id = request.auth.current_workspace_id
     require_role(user, workspace_id, ADMIN_ROLES)
-    return BudgetAccountService.toggle_archive(user, workspace_id, account_id)
+    return BudgetAccountService.set_archive_status(user, workspace_id, account_id, data)

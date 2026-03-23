@@ -7,7 +7,7 @@ from budget_accounts.exceptions import (
     BudgetAccountNotFoundError,
 )
 from budget_accounts.models import BudgetAccount
-from budget_accounts.schemas import BudgetAccountCreate, BudgetAccountUpdate
+from budget_accounts.schemas import BudgetAccountArchive, BudgetAccountCreate, BudgetAccountUpdate
 from common.exceptions import CurrencyNotFoundInWorkspaceError
 from common.services.base import resolve_currency
 
@@ -90,10 +90,10 @@ class BudgetAccountService:
 
     @staticmethod
     @db_transaction.atomic
-    def toggle_archive(user, workspace_id: int, account_id: int) -> BudgetAccount:
-        """Toggle archive status of a budget account."""
+    def set_archive_status(user, workspace_id: int, account_id: int, data: BudgetAccountArchive) -> BudgetAccount:
+        """Set archive status of a budget account (True = active, False = archived)."""
         account = BudgetAccountService.get(account_id, workspace_id)
-        account.is_active = not account.is_active
+        account.is_active = data.is_active
         account.updated_by = user
         account.save()
         return account
