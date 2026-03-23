@@ -102,7 +102,7 @@ class WorkspaceService:
         affected_users = list(UserModel.objects.filter(id__in=affected_user_ids))
 
         memberships = (
-            WorkspaceMember.objects.filter(user_id__in=affected_user_ids)
+            WorkspaceMember.objects.filter(user_id__in=all_affected_ids)
             .exclude(workspace_id=workspace_id)
             .order_by('-updated_at')
             .values_list('user_id', 'workspace_id')

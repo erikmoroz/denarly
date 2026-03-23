@@ -170,7 +170,11 @@ def list_workspaces(request: HttpRequest):
 
 ### Service Layer
 
-Business logic lives in `<app>/services.py` as class-based services (e.g., `TransactionService`). Services handle validation, DB operations, and balance updates. Domain-specific exceptions are defined in `<app>/exceptions.py`. Shared helpers are in `common/services/base.py`.
+Business logic lives in `<app>/services.py` as class-based services (e.g., `TransactionService`). Services handle validation, DB operations, and balance updates. Domain-specific exceptions are defined in `<app>/exceptions.py`.
+
+Shared helpers:
+- `common/permissions.py` — `require_role(user, workspace_id, allowed_roles)` — raises 403, returns the role
+- `common/services/base.py` — `resolve_currency`, `get_or_create_period_balance`, `update_period_balance`
 
 ```python
 # transactions/services.py
@@ -249,9 +253,15 @@ from common.tests.mixins import AuthMixin, APIClientMixin
 from django.test import TestCase
 
 class TestTransactions(AuthMixin, APIClientMixin, TestCase):
+    user_role = 'member'  # default: 'owner'; also: 'admin', 'viewer'
+
     def test_create_transaction(self):
         data = self.post('/api/transactions', payload, **self.auth_headers())
         self.assertStatus(201)
+
+    def test_viewer_cannot_create(self):
+        # self.user, self.workspace, self.auth_token are available
+        self.assertStatus(403)
 ```
 
 ## Frontend Code Style (TypeScript/React)
@@ -450,13 +460,13 @@ from workspaces.services import WorkspaceService
 workspace = WorkspaceService.create_workspace(user=user, name='New Workspace', create_demo=True)
 
 # Delete a workspace (switches all affected users to another workspace)
-WorkspaceService.delete_workspace(user=user, workspace=workspace)
+WorkspaceService.delete_workspace(user=user, workspace_id=workspace.id)
 ```
 
 ### Frontend: Use Context
 
 ```typescript
 const { user, isAuthenticated } = useAuth()
-const { workspace, workspaces, switchWorkspace, createWorkspace } = useWorkspace()
-const { currentPeriod } = useBudgetPeriod()
+const { workspace, workspaces, switchWorkspace, createWorkspace, deleteWorkspace } = useWorkspace()
+const { selectedPeriod, selectedPeriodId } = useBudgetPeriod()
 ```

@@ -120,7 +120,7 @@ Each app with business logic has a `services.py` (e.g., `transactions/services.p
 │   Client    │────►│   Backend   │────►│  Database   │
 └─────────────┘     └─────────────┘     └─────────────┘
       │                   │                    │
-      │  POST /backend/   │                    │
+      │  POST /api/       │                    │
       │  auth/login       │                    │
       │  {email, pass}    │                    │
       │──────────────────►│                    │
@@ -133,7 +133,7 @@ Each app with business logic has a `services.py` (e.g., `transactions/services.p
       │  JWT Token        │                    │
       │◄──────────────────│                    │
       │                   │                    │
-      │  GET /backend/... │                    │
+      │  GET /api/...     │                    │
       │  Authorization:   │                    │
       │  Bearer <token>   │                    │
       │──────────────────►│                    │
@@ -303,7 +303,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_API_URL` | Backend API base URL (default: `http://localhost:8000/backend`) |
+| `VITE_API_URL` | Backend API base URL (default: `http://localhost:8000/api`) |
 | `VITE_DEMO_MODE` | Hide registration link when true |
 
 ## Deployment Architecture
