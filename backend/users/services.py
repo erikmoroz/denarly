@@ -36,13 +36,13 @@ class UserService:
 
         if data.calendar_start_day is not None:
             if data.calendar_start_day < 1 or data.calendar_start_day > 7:
-                raise HttpError(400, 'calendar_start_day must be between 1 and 7')
+                raise UserValidationError('calendar_start_day must be between 1 and 7')
             preferences.calendar_start_day = data.calendar_start_day
 
         if data.font_family is not None:
             valid_fonts = [choice[0] for choice in FontChoices.choices]
             if data.font_family not in valid_fonts:
-                raise HttpError(400, f'font_family must be one of: {", ".join(valid_fonts)}')
+                raise UserValidationError(f'font_family must be one of: {", ".join(valid_fonts)}')
             preferences.font_family = data.font_family
 
         preferences.save()
