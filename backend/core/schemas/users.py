@@ -47,9 +47,11 @@ class UserPreferencesOut(BaseModel):
     """User preferences output schema."""
 
     calendar_start_day: int
+    font_family: str
 
 
 class UserPreferencesUpdate(BaseModel):
     """User preferences update schema."""
 
-    calendar_start_day: int
+    calendar_start_day: int | None = None
+    font_family: str | None = None

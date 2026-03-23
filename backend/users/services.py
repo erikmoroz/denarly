@@ -6,7 +6,7 @@ from django.db import transaction as db_transaction
 from ninja.errors import HttpError
 
 from core.schemas import UserPreferencesUpdate, UserUpdate
-from users.models import ConsentType, User, UserConsent, UserPreferences, WeekdayChoices
+from users.models import ConsentType, FontChoices, User, UserConsent, UserPreferences, WeekdayChoices
 
 logger = logging.getLogger(__name__)
 
@@ -16,18 +16,29 @@ class UserService:
     def get_or_create_preferences(user: User) -> UserPreferences:
         """Get or create user preferences."""
         preferences, _ = UserPreferences.objects.get_or_create(
-            user=user, defaults={'calendar_start_day': WeekdayChoices.SUNDAY}
+            user=user, defaults={'calendar_start_day': WeekdayChoices.SUNDAY, 'font_family': FontChoices.GEIST}
         )
+        if not preferences.font_family:
+            preferences.font_family = FontChoices.GEIST
+            preferences.save(update_fields=['font_family'])
         return preferences
 
     @staticmethod
     def update_preferences(user: User, data: UserPreferencesUpdate) -> UserPreferences:
         """Update user preferences with validation."""
-        if data.calendar_start_day < 1 or data.calendar_start_day > 7:
-            raise HttpError(400, 'calendar_start_day must be between 1 and 7')
-
         preferences = UserService.get_or_create_preferences(user)
-        preferences.calendar_start_day = data.calendar_start_day
+
+        if data.calendar_start_day is not None:
+            if data.calendar_start_day < 1 or data.calendar_start_day > 7:
+                raise HttpError(400, 'calendar_start_day must be between 1 and 7')
+            preferences.calendar_start_day = data.calendar_start_day
+
+        if data.font_family is not None:
+            valid_fonts = [choice[0] for choice in FontChoices.choices]
+            if data.font_family not in valid_fonts:
+                raise HttpError(400, f'font_family must be one of: {", ".join(valid_fonts)}')
+            preferences.font_family = data.font_family
+
         preferences.save()
         return preferences
 
@@ -328,6 +339,7 @@ class UserService:
             prefs = user.preferences
             preferences = {
                 'calendar_start_day': prefs.calendar_start_day,
+                'font_family': prefs.font_family,
                 'created_at': prefs.created_at.isoformat(),
                 'updated_at': prefs.updated_at.isoformat(),
             }
