@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { workspaceMembersApi, workspacesApi, authApi } from '../api/client'
+import { workspaceMembersApi, authApi } from '../api/client'
 import { useAuth } from '../contexts/AuthContext'
+import { useWorkspace } from '../contexts/WorkspaceContext'
 import { usePermissions } from '../hooks/usePermissions'
 import toast from 'react-hot-toast'
 import Loading from '../components/common/Loading'
@@ -17,13 +18,7 @@ export default function WorkspaceMembersPage() {
   const [isChangeMyPasswordModalOpen, setIsChangeMyPasswordModalOpen] = useState(false)
   const queryClient = useQueryClient()
   const { user } = useAuth()
-
-  // Get current workspace
-  const { data: workspace, isLoading: workspaceLoading } = useQuery({
-    queryKey: ['workspace-current'],
-    queryFn: workspacesApi.getCurrent,
-  })
-
+  const { workspace, isLoading: workspaceLoading } = useWorkspace()
   const workspaceId = workspace?.id
 
   // Get workspace members
@@ -111,16 +106,14 @@ export default function WorkspaceMembersPage() {
           <p className="text-on-surface-variant mt-1">{workspace?.name}</p>
         </div>
         <div className="flex gap-2">
-          {isOwner && (
-            <button
-              onClick={() => setIsChangeMyPasswordModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-surface-container-high text-on-surface rounded-lg hover:bg-surface-container transition-all"
-              title="Change My Password"
-            >
-              <span className="material-symbols-outlined text-lg">key</span>
-              <span className="hidden sm:inline">Change My Password</span>
-            </button>
-          )}
+          <button
+            onClick={() => setIsChangeMyPasswordModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-surface-container-high text-on-surface rounded-lg hover:bg-surface-container transition-all"
+            title="Change My Password"
+          >
+            <span className="material-symbols-outlined text-lg">key</span>
+            <span className="hidden sm:inline">Change My Password</span>
+          </button>
           {canManageMembers && (
             <button
               onClick={() => setIsAddModalOpen(true)}

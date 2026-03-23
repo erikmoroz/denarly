@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useBudgetPeriod } from '../../contexts/BudgetPeriodContext'
 import { useLayout } from '../../contexts/LayoutContext'
+import { useWorkspace } from '../../contexts/WorkspaceContext'
 import BudgetAccountSelector from '../BudgetAccountSelector'
 import BudgetPeriodSelectorModal from '../modals/periods/BudgetPeriodSelectorModal'
 import UserMenu from './UserMenu'
+import WorkspaceSelector from './WorkspaceSelector'
+import WorkspaceSettingsPanel from './WorkspaceSettingsPanel'
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: 'home', exact: true },
@@ -89,70 +92,100 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed, onToggleCollapse, onClose }: SidebarProps) {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const { workspace } = useWorkspace()
+
+  const handleOpenSettings = () => setIsSettingsOpen(true)
+
   return (
-    <aside
-      className={`flex flex-col h-full bg-surface-container-low transition-all duration-300 z-50
-        ${collapsed ? 'w-16' : 'w-60'}`}
-    >
-      {/* Logo + collapse toggle */}
-      <div className="flex items-center justify-between p-4 flex-shrink-0 mb-4">
-        {!collapsed && (
-          <span className="font-headline font-black text-primary text-2xl tracking-tight select-none">Monie</span>
-        )}
-        <button
-          onClick={onClose ?? onToggleCollapse}
-          className={`p-1.5 rounded-lg text-on-surface-variant hover:text-primary hover:bg-white/50 transition-colors
-            ${collapsed ? 'mx-auto' : ''}`}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <span className="material-symbols-outlined select-none">
-            {collapsed ? 'chevron_right' : 'chevron_left'}
-          </span>
-        </button>
-      </div>
-
-      {/* Account & Period selectors */}
-      {!collapsed && (
-        <div className="p-3 space-y-3 flex-shrink-0 mt-3">
-          <BudgetAccountSelector />
-          <NavigationPeriodSelector collapsed={collapsed} />
-        </div>
-      )}
-
-      {/* Nav links */}
-      <nav className="flex-1 overflow-y-auto p-2">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.exact}
-            onClick={onClose}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-lg transition-all mb-1 group
-              ${isActive
-                ? 'bg-white shadow-sm text-primary font-bold translate-x-1'
-                : 'text-on-surface/70 hover:bg-white/50 hover:text-primary'
-              }`
-            }
-            title={collapsed ? item.label : undefined}
+    <>
+      <aside
+        className={`flex flex-col h-full bg-surface-container-low transition-all duration-300 z-50
+          ${collapsed ? 'w-16' : 'w-60'}`}
+      >
+        {/* Logo + collapse toggle */}
+        <div className="flex items-center justify-between p-4 flex-shrink-0 mb-4">
+          {!collapsed && (
+            <span className="font-headline font-black text-primary text-2xl tracking-tight select-none">Monie</span>
+          )}
+          <button
+            onClick={onClose ?? onToggleCollapse}
+            className={`p-1.5 rounded-lg text-on-surface-variant hover:text-primary hover:bg-white/50 transition-colors
+              ${collapsed ? 'mx-auto' : ''}`}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <span className="material-symbols-outlined text-xl flex-shrink-0 select-none">
-              {item.icon}
+            <span className="material-symbols-outlined select-none">
+              {collapsed ? 'chevron_right' : 'chevron_left'}
             </span>
-            {!collapsed && (
-              <span className="font-['JetBrains_Mono'] text-xs uppercase tracking-wider">
-                {item.label}
-              </span>
-            )}
-          </NavLink>
-        ))}
-      </nav>
+          </button>
+        </div>
 
-      {/* Bottom: layout toggle + user menu */}
-      <div className="p-2 flex-shrink-0 space-y-1 py-3 mt-3">
-        <LayoutToggle collapsed={collapsed} />
-        <UserMenu collapsed={collapsed} />
-      </div>
-    </aside>
+        {/* Workspace, Account & Period selectors */}
+        {!collapsed && (
+          <div className="p-3 space-y-3 flex-shrink-0 mt-3">
+            <WorkspaceSelector onOpenSettings={handleOpenSettings} />
+            {workspace && (
+              <>
+                <BudgetAccountSelector />
+                <NavigationPeriodSelector collapsed={collapsed} />
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Nav links */}
+        {workspace ? (
+          <nav className="flex-1 overflow-y-auto p-2">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.exact}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2 rounded-lg transition-all mb-1 group
+                  ${isActive
+                    ? 'bg-white shadow-sm text-primary font-bold translate-x-1'
+                    : 'text-on-surface/70 hover:bg-white/50 hover:text-primary'
+                  }`
+                }
+                title={collapsed ? item.label : undefined}
+              >
+                <span className="material-symbols-outlined text-xl flex-shrink-0 select-none">
+                  {item.icon}
+                </span>
+                {!collapsed && (
+                  <span className="font-['JetBrains_Mono'] text-xs uppercase tracking-wider">
+                    {item.label}
+                  </span>
+                )}
+              </NavLink>
+            ))}
+          </nav>
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-4">
+            <div className="text-center">
+              <p className="text-sm text-on-surface-variant mb-2">No workspace selected</p>
+              <p className="text-xs text-on-surface-variant/70">
+                Create or join a workspace to get started
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Bottom: layout toggle + user menu */}
+        <div className="p-2 flex-shrink-0 space-y-1 py-3 mt-3">
+          <LayoutToggle collapsed={collapsed} />
+          <UserMenu collapsed={collapsed} />
+        </div>
+      </aside>
+
+      {workspace && (
+        <WorkspaceSettingsPanel
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
+    </>
   )
 }
