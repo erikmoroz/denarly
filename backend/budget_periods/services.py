@@ -171,6 +171,7 @@ class BudgetPeriodService:
         for source_category in source_period.categories.all():
             new_category = Category.objects.create(
                 budget_period=new_period,
+                workspace_id=workspace_id,
                 name=source_category.name,
                 created_by=user,
             )
@@ -180,9 +181,11 @@ class BudgetPeriodService:
             [
                 Budget(
                     budget_period=new_period,
+                    workspace_id=workspace_id,
                     category_id=category_mapping[source_budget.category_id].id,
                     currency=source_budget.currency,
                     amount=source_budget.amount,
+                    created_by=user,
                 )
                 for source_budget in source_period.budgets.all()
                 if source_budget.category_id in category_mapping

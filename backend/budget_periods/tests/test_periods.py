@@ -5,9 +5,10 @@ from datetime import date
 from django.test import TestCase
 
 from budget_accounts.models import BudgetAccount
+from budget_periods.factories import BudgetPeriodFactory
 from budget_periods.models import BudgetPeriod
-from budgets.models import Budget
-from categories.models import Category
+from budgets.factories import BudgetFactory
+from categories.factories import CategoryFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
 from period_balances.models import PeriodBalance
 from planned_transactions.models import PlannedTransaction
@@ -525,7 +526,7 @@ class TestCopyPeriod(BudgetPeriodsTestCase):
         """Set up test data for copy tests."""
         super().setUp()
         # Create source period with categories, budgets, and planned transactions
-        self.source_period = BudgetPeriod.objects.create(
+        self.source_period = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
             workspace=self.workspace,
             name='January 2025',
@@ -536,26 +537,30 @@ class TestCopyPeriod(BudgetPeriodsTestCase):
         )
 
         # Create categories
-        self.cat1 = Category.objects.create(
+        self.cat1 = CategoryFactory(
             budget_period=self.source_period,
+            workspace=self.workspace,
             name='Groceries',
             created_by=self.user,
         )
-        self.cat2 = Category.objects.create(
+        self.cat2 = CategoryFactory(
             budget_period=self.source_period,
+            workspace=self.workspace,
             name='Rent',
             created_by=self.user,
         )
 
         # Create budgets
-        Budget.objects.create(
+        BudgetFactory(
             budget_period=self.source_period,
+            workspace=self.workspace,
             category=self.cat1,
             currency=self.currencies['PLN'],
             amount=1500,
         )
-        Budget.objects.create(
+        BudgetFactory(
             budget_period=self.source_period,
+            workspace=self.workspace,
             category=self.cat2,
             currency=self.currencies['PLN'],
             amount=2000,

@@ -3,8 +3,10 @@
 from django.test import TestCase
 
 from budget_accounts.models import BudgetAccount
-from budget_periods.models import BudgetPeriod
+from budget_periods.factories import BudgetPeriodFactory
+from budgets.factories import BudgetFactory
 from budgets.models import Budget
+from categories.factories import CategoryFactory
 from categories.models import Category
 from common.exceptions import ValidationError
 from common.tests.factories import UserFactory
@@ -123,13 +125,13 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
 
         account = BudgetAccount.objects.filter(workspace=workspace).first()
         pln = Currency.objects.get(workspace=workspace, symbol='PLN')
-        period = BudgetPeriod.objects.create(
+        period = BudgetPeriodFactory(
             budget_account=account,
+            workspace=workspace,
             name='Jan',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
             created_by=user,
-            updated_by=user,
         )
 
         transaction = Transaction.objects.create(
@@ -253,13 +255,13 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
 
         account = BudgetAccount.objects.filter(workspace=workspace).first()
         pln = Currency.objects.get(workspace=workspace, symbol='PLN')
-        period = BudgetPeriod.objects.create(
+        period = BudgetPeriodFactory(
             budget_account=account,
+            workspace=workspace,
             name='Jan',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
             created_by=user,
-            updated_by=user,
         )
 
         exchange = CurrencyExchange.objects.create(
@@ -294,21 +296,23 @@ class TestWorkspaceServiceDeleteWorkspace(TestCase):
 
         account = BudgetAccount.objects.filter(workspace=workspace).first()
         pln = Currency.objects.get(workspace=workspace, symbol='PLN')
-        period = BudgetPeriod.objects.create(
+        period = BudgetPeriodFactory(
             budget_account=account,
+            workspace=workspace,
             name='Jan',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
             created_by=user,
-            updated_by=user,
         )
-        category = Category.objects.create(
+        category = CategoryFactory(
             budget_period=period,
+            workspace=workspace,
             name='Groceries',
             created_by=user,
         )
-        budget = Budget.objects.create(
+        budget = BudgetFactory(
             budget_period=period,
+            workspace=workspace,
             category=category,
             currency=pln,
             amount=100,

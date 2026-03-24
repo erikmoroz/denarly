@@ -3,13 +3,12 @@
 from datetime import date
 from decimal import Decimal
 
-# Import User model at module level for use in tests
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from budget_accounts.models import BudgetAccount
-from budget_periods.models import BudgetPeriod
-from categories.models import Category
+from budget_periods.factories import BudgetPeriodFactory
+from categories.factories import CategoryFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
 from period_balances.models import PeriodBalance
 from planned_transactions.models import PlannedTransaction
@@ -37,8 +36,9 @@ class PlannedTransactionTestCase(APIClientMixin, AuthMixin, TestCase):
         self.account = BudgetAccount.objects.filter(workspace=self.workspace, name='General').first()
 
         # Create budget periods
-        self.period1 = BudgetPeriod.objects.create(
+        self.period1 = BudgetPeriodFactory(
             budget_account=self.account,
+            workspace=self.workspace,
             name='January 2025',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -46,8 +46,9 @@ class PlannedTransactionTestCase(APIClientMixin, AuthMixin, TestCase):
             created_by=self.user,
         )
 
-        self.period2 = BudgetPeriod.objects.create(
+        self.period2 = BudgetPeriodFactory(
             budget_account=self.account,
+            workspace=self.workspace,
             name='February 2025',
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
@@ -56,14 +57,16 @@ class PlannedTransactionTestCase(APIClientMixin, AuthMixin, TestCase):
         )
 
         # Create categories
-        self.category1 = Category.objects.create(
+        self.category1 = CategoryFactory(
             budget_period=self.period1,
+            workspace=self.workspace,
             name='Groceries',
             created_by=self.user,
         )
 
-        self.category2 = Category.objects.create(
+        self.category2 = CategoryFactory(
             budget_period=self.period1,
+            workspace=self.workspace,
             name='Rent',
             created_by=self.user,
         )
@@ -278,8 +281,9 @@ class TestCreatePlannedTransaction(PlannedTransactionTestCase):
     def test_create_planned_with_invalid_category_fails(self):
         """Test that creating with category from different period fails."""
         # Create a category in period2
-        category_period2 = Category.objects.create(
+        category_period2 = CategoryFactory(
             budget_period=self.period2,
+            workspace=self.workspace,
             name='Utilities',
             created_by=self.user,
         )
@@ -608,8 +612,9 @@ class TestExportPlannedTransactions(PlannedTransactionTestCase):
             created_by=other_user,
         )
 
-        other_period = BudgetPeriod.objects.create(
+        other_period = BudgetPeriodFactory(
             budget_account=other_account,
+            workspace=other_workspace,
             name='Other Period',
             start_date=date(2025, 4, 1),
             end_date=date(2025, 4, 30),

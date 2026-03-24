@@ -84,6 +84,7 @@ def create_demo_fixtures(
 
     budget_period = BudgetPeriod.objects.create(
         budget_account=budget_account,
+        workspace_id=workspace_id,
         name=period_name,
         start_date=start_date,
         end_date=end_date,
@@ -106,6 +107,7 @@ def create_demo_fixtures(
     for cat_name in categories_data:
         category = Category.objects.create(
             budget_period=budget_period,
+            workspace_id=workspace_id,
             name=cat_name,
             created_by_id=user_id,
         )
@@ -127,6 +129,7 @@ def create_demo_fixtures(
     for cat_name, currency_symbol, amount in budgets_data:
         Budget.objects.create(
             budget_period=budget_period,
+            workspace_id=workspace_id,
             category=category_map[cat_name],
             currency=currency_map[currency_symbol],
             amount=amount,

@@ -3,12 +3,11 @@
 from datetime import date
 from decimal import Decimal
 
-# Import User model at module level for use in tests
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from budget_accounts.models import BudgetAccount
-from budget_periods.models import BudgetPeriod
+from budget_periods.factories import BudgetPeriodFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
 from currency_exchanges.models import CurrencyExchange
 from period_balances.models import PeriodBalance
@@ -38,8 +37,9 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
         )
 
         # Create budget periods
-        self.period1 = BudgetPeriod.objects.create(
+        self.period1 = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='January 2025',
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 31),
@@ -47,8 +47,9 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        self.period2 = BudgetPeriod.objects.create(
+        self.period2 = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='February 2025',
             start_date=date(2025, 2, 1),
             end_date=date(2025, 2, 28),
@@ -56,8 +57,9 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=self.user,
         )
 
-        self.other_period = BudgetPeriod.objects.create(
+        self.other_period = BudgetPeriodFactory(
             budget_account=self.other_account,
+            workspace=self.workspace,
             name='March 2025',
             start_date=date(2025, 3, 1),
             end_date=date(2025, 3, 31),
@@ -208,8 +210,9 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
             created_by=other_user,
         )
 
-        other_period = BudgetPeriod.objects.create(
+        other_period = BudgetPeriodFactory(
             budget_account=other_account,
+            workspace=other_workspace,
             name='Other Period',
             start_date=date(2025, 4, 1),
             end_date=date(2025, 4, 30),
@@ -294,8 +297,9 @@ class PeriodBalancesTestCase(AuthMixin, APIClientMixin, TestCase):
     def test_recalculate_balance_creates_new_balance(self):
         """Test recalculating creates balance if it doesn't exist."""
         # Create a new period with no balances
-        new_period = BudgetPeriod.objects.create(
+        new_period = BudgetPeriodFactory(
             budget_account=self.workspace.budget_accounts.first(),
+            workspace=self.workspace,
             name='April 2025',
             start_date=date(2025, 4, 1),
             end_date=date(2025, 4, 30),
