@@ -7,15 +7,23 @@ from django.db import transaction as db_transaction
 
 from common.email import EmailService
 from common.exceptions import ValidationError
-from common.tokens import generate_verification_token, verify_verification_token
+from common.tokens import (
+    generate_email_change_token,
+    generate_verification_token,
+    verify_email_change_token,
+    verify_verification_token,
+)
 from core.schemas import UserPreferencesUpdate, UserUpdate
 from users.exceptions import (
     UserAlreadyVerifiedError,
     UserConsentNotFoundError,
     UserDeletionBlockedError,
+    UserEmailAlreadyInUseError,
     UserInvalidConsentTypeError,
+    UserInvalidEmailChangeTokenError,
     UserInvalidPasswordError,
     UserInvalidVerificationTokenError,
+    UserSameEmailError,
 )
 from users.models import ConsentType, FontChoices, User, UserConsent, UserPreferences, WeekdayChoices
 
@@ -154,6 +162,76 @@ class UserService:
             )
         )
         return message
+
+    @staticmethod
+    @db_transaction.atomic
+    def request_email_change(user: User, password: str, new_email: str) -> None:
+        if not user.check_password(password):
+            raise UserInvalidPasswordError()
+
+        if new_email.lower() == user.email.lower():
+            raise UserSameEmailError()
+
+        if User.objects.filter(email__iexact=new_email).exists():
+            raise UserEmailAlreadyInUseError()
+
+        user.pending_email = new_email
+        user.save(update_fields=['pending_email'])
+
+        token = generate_email_change_token(user.id, new_email)
+        confirm_url = f'{settings.FRONTEND_URL}/confirm-email-change?token={token}'
+        user_name = user.full_name or user.email
+
+        db_transaction.on_commit(
+            lambda: EmailService.send_email(
+                to=new_email,
+                subject='Confirm your new email — Monie',
+                template_name='email/email_change_verify',
+                context={
+                    'user_name': user_name,
+                    'confirm_url': confirm_url,
+                    'new_email': new_email,
+                },
+            )
+        )
+
+    @staticmethod
+    @db_transaction.atomic
+    def confirm_email_change(user: User, token: str) -> None:
+        result = verify_email_change_token(token)
+        if not result:
+            raise UserInvalidEmailChangeTokenError()
+
+        user_id, new_email = result
+        if user.id != user_id:
+            raise UserInvalidEmailChangeTokenError()
+
+        if user.pending_email != new_email:
+            raise UserInvalidEmailChangeTokenError('This email change request is no longer valid')
+
+        if User.objects.filter(email__iexact=new_email).exclude(id=user.id).exists():
+            raise UserEmailAlreadyInUseError()
+
+        old_email = user.email
+        user.email = new_email
+        user.pending_email = ''
+        user.email_verified = True
+        user.save(update_fields=['email', 'pending_email', 'email_verified'])
+
+        user_name = user.full_name or new_email
+
+        db_transaction.on_commit(
+            lambda: EmailService.send_email(
+                to=old_email,
+                subject='Your email was changed — Monie',
+                template_name='email/email_change_notify',
+                context={
+                    'user_name': user_name,
+                    'old_email': old_email,
+                    'new_email': new_email,
+                },
+            )
+        )
 
     @staticmethod
     def record_consent(user: User, consent_type: str, version: str, ip_address: str | None = None) -> UserConsent:

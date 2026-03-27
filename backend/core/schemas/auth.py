@@ -118,6 +118,25 @@ class ResetPasswordIn(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class EmailChangeRequestIn(BaseModel):
+    password: str
+    new_email: str
+
+    @field_validator('new_email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        validator = EmailValidator()
+        try:
+            validator(v)
+        except DjangoValidationError:
+            raise ValueError('Enter a valid email address')
+        return v
+
+
+class EmailChangeConfirmIn(BaseModel):
+    token: str
+
+
 class UserPasswordUpdate(BaseModel):
     """User password update schema."""
 

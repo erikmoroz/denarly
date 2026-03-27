@@ -8,11 +8,13 @@ from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
 from ninja import Router
 
-from common.auth import create_access_token
+from common.auth import JWTAuth, create_access_token
 from common.throttle import rate_limit
 from common.utils import get_client_ip
 from core.schemas import (
     DetailOut,
+    EmailChangeConfirmIn,
+    EmailChangeRequestIn,
     ErrorOut,
     ForgotPasswordIn,
     LoginIn,
@@ -156,3 +158,19 @@ def reset_password(request, data: ResetPasswordIn):
     UserService.send_password_changed_email(user)
 
     return 200, {'message': 'Password has been reset successfully'}
+
+
+@router.post('/request-email-change', response={200: MessageOut, 400: DetailOut}, auth=JWTAuth())
+def request_email_change(request, data: EmailChangeRequestIn):
+    from users.services import UserService
+
+    UserService.request_email_change(request.auth, data.password, data.new_email)
+    return 200, {'message': 'Verification email sent to your new address'}
+
+
+@router.post('/confirm-email-change', response={200: MessageOut, 400: DetailOut}, auth=JWTAuth())
+def confirm_email_change(request, data: EmailChangeConfirmIn):
+    from users.services import UserService
+
+    UserService.confirm_email_change(request.auth, data.token)
+    return 200, {'message': 'Email changed successfully'}
