@@ -15,10 +15,12 @@ Schemas are organized by domain in separate modules:
 # =============================================================================
 
 from core.schemas.auth import (
+    ForgotPasswordIn,
     LoginIn,
     RefreshToken,
     RegisterIn,
     ResendVerificationIn,
+    ResetPasswordIn,
     Token,
     UserPasswordUpdate,
     VerifyEmailIn,
@@ -79,6 +81,8 @@ __all__ = [
     'UserPasswordUpdate',
     'VerifyEmailIn',
     'ResendVerificationIn',
+    'ForgotPasswordIn',
+    'ResetPasswordIn',
     # Users
     'UserBase',
     'UserOut',

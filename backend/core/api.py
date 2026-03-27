@@ -2,7 +2,10 @@
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from ninja import Router
 
 from common.auth import create_access_token
@@ -11,10 +14,12 @@ from common.utils import get_client_ip
 from core.schemas import (
     DetailOut,
     ErrorOut,
+    ForgotPasswordIn,
     LoginIn,
     MessageOut,
     RegisterIn,
     ResendVerificationIn,
+    ResetPasswordIn,
     Token,
     VerifyEmailIn,
 )
@@ -115,3 +120,39 @@ def resend_verification(request, data: ResendVerificationIn):
     from users.services import UserService
 
     return 200, {'message': UserService.resend_verification(data.email)}
+
+
+@router.post('/forgot-password', response={200: MessageOut, 429: DetailOut})
+@rate_limit('forgot_password', limit=3, period=3600)
+def forgot_password(request, data: ForgotPasswordIn):
+    from users.services import UserService
+
+    user = User.objects.filter(email=data.email).first()
+    message = 'If an account exists with this email, a reset link has been sent.'
+
+    if not user:
+        return 200, {'message': message}
+
+    transaction.on_commit(lambda: UserService.send_reset_password_email(user))
+    return 200, {'message': message}
+
+
+@router.post('/reset-password', response={200: MessageOut, 400: DetailOut})
+def reset_password(request, data: ResetPasswordIn):
+    from users.services import UserService
+
+    try:
+        uid = force_str(urlsafe_base64_decode(data.uidb64))
+        user = User.objects.get(pk=uid)
+    except (User.DoesNotExist, ValueError, TypeError):
+        return 400, {'detail': 'Invalid reset link'}
+
+    if not default_token_generator.check_token(user, data.token):
+        return 400, {'detail': 'Invalid or expired reset link'}
+
+    user.set_password(data.new_password)
+    user.save(update_fields=['password'])
+
+    UserService.send_password_changed_email(user)
+
+    return 200, {'message': 'Password has been reset successfully'}

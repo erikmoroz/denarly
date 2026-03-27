@@ -60,6 +60,7 @@ class UserService:
         return user
 
     @staticmethod
+    @db_transaction.atomic
     def change_password(user: User, current_password: str, new_password: str) -> None:
         """Change user password with validation."""
         if not user.check_password(current_password):
@@ -67,6 +68,36 @@ class UserService:
 
         user.set_password(new_password)
         user.save()
+
+        db_transaction.on_commit(lambda: UserService.send_password_changed_email(user))
+
+    @staticmethod
+    def send_reset_password_email(user) -> None:
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+
+        uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_url = f'{settings.FRONTEND_URL}/reset-password?uid={uidb64}&token={token}'
+        user_name = user.full_name or user.email
+
+        EmailService.send_email(
+            to=user.email,
+            subject='Reset your password — Monie',
+            template_name='email/reset_password',
+            context={'user_name': user_name, 'reset_url': reset_url},
+        )
+
+    @staticmethod
+    def send_password_changed_email(user, changed_by_admin: bool = False) -> None:
+        user_name = user.full_name or user.email
+        EmailService.send_email(
+            to=user.email,
+            subject='Your password was changed — Monie',
+            template_name='email/password_changed',
+            context={'user_name': user_name, 'changed_by_admin': changed_by_admin},
+        )
 
     @staticmethod
     def verify_email(token: str) -> User:
