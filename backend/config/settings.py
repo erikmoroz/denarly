@@ -153,6 +153,11 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
 # Workspace limits
 WORKSPACE_MAX_MEMBERS = int(os.getenv('WORKSPACE_MAX_MEMBERS', '10'))
 
+# Two-factor authentication
+TWO_FACTOR_RECOVERY_CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+TWO_FACTOR_RECOVERY_CODE_COUNT = 8
+TWO_FACTOR_RECOVERY_CODE_LENGTH = 8
+
 # Cache configuration (used for rate limiting)
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379')
 CACHES = {
