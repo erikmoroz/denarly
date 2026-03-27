@@ -46,8 +46,6 @@ class UserService:
     @staticmethod
     def update_profile(user: User, data: UserUpdate) -> User:
         """Update user profile information."""
-        if data.email is not None:
-            user.email = data.email
         if data.full_name is not None:
             user.full_name = data.full_name
         if data.is_active is not None:
