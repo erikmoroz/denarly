@@ -10,6 +10,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
+TOKEN_MAX_AGE = int(os.getenv('TOKEN_MAX_AGE', 7 * 24 * 60 * 60))
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ['SECRET_KEY']
 

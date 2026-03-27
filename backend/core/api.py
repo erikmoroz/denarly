@@ -8,7 +8,16 @@ from ninja import Router
 from common.auth import create_access_token
 from common.throttle import rate_limit
 from common.utils import get_client_ip
-from core.schemas import DetailOut, ErrorOut, LoginIn, RegisterIn, Token
+from core.schemas import (
+    DetailOut,
+    ErrorOut,
+    LoginIn,
+    MessageOut,
+    RegisterIn,
+    ResendVerificationIn,
+    Token,
+    VerifyEmailIn,
+)
 from workspaces.services import WorkspaceService
 
 router = Router(tags=['Auth'])
@@ -52,6 +61,8 @@ def register(request, data: RegisterIn):
         UserService.record_consent(user, ConsentType.TERMS_OF_SERVICE, data.accepted_terms_version, ip)
         UserService.record_consent(user, ConsentType.PRIVACY_POLICY, data.accepted_privacy_version, ip)
 
+        transaction.on_commit(lambda: UserService.send_registration_emails(user))
+
     access_token = create_access_token(user)
 
     return 201, {
@@ -88,3 +99,19 @@ def login(request, data: LoginIn):
         'access_token': access_token,
         'token_type': 'bearer',
     }
+
+
+@router.post('/verify-email', response={200: MessageOut, 400: DetailOut})
+def verify_email(request, data: VerifyEmailIn):
+    from users.services import UserService
+
+    UserService.verify_email(data.token)
+    return 200, {'message': 'Email verified successfully'}
+
+
+@router.post('/resend-verification', response={200: MessageOut, 429: DetailOut})
+@rate_limit('resend_verification', limit=3, period=3600)
+def resend_verification(request, data: ResendVerificationIn):
+    from users.services import UserService
+
+    return 200, {'message': UserService.resend_verification(data.email)}

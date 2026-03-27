@@ -2,15 +2,20 @@
 
 import logging
 
+from django.conf import settings
 from django.db import transaction as db_transaction
 
+from common.email import EmailService
 from common.exceptions import ValidationError
+from common.tokens import generate_verification_token, verify_verification_token
 from core.schemas import UserPreferencesUpdate, UserUpdate
 from users.exceptions import (
+    UserAlreadyVerifiedError,
     UserConsentNotFoundError,
     UserDeletionBlockedError,
     UserInvalidConsentTypeError,
     UserInvalidPasswordError,
+    UserInvalidVerificationTokenError,
 )
 from users.models import ConsentType, FontChoices, User, UserConsent, UserPreferences, WeekdayChoices
 
@@ -62,6 +67,62 @@ class UserService:
 
         user.set_password(new_password)
         user.save()
+
+    @staticmethod
+    def verify_email(token: str) -> User:
+        user_id = verify_verification_token(token)
+        if not user_id:
+            raise UserInvalidVerificationTokenError()
+        user = User.objects.filter(id=user_id).first()
+        if not user:
+            raise UserInvalidVerificationTokenError()
+        if user.email_verified:
+            raise UserAlreadyVerifiedError()
+        user.email_verified = True
+        user.save(update_fields=['email_verified'])
+        return user
+
+    @staticmethod
+    def send_registration_emails(user: User) -> None:
+        token = generate_verification_token(user.id)
+        verification_url = f'{settings.FRONTEND_URL}/verify-email?token={token}'
+        user_name = user.full_name or user.email
+
+        EmailService.send_email(
+            to=user.email,
+            subject='Verify your email — Monie',
+            template_name='email/verify_email',
+            context={'user_name': user_name, 'verification_url': verification_url},
+        )
+        EmailService.send_email(
+            to=user.email,
+            subject='Welcome to Monie!',
+            template_name='email/welcome',
+            context={'user_name': user_name},
+        )
+
+    @staticmethod
+    def resend_verification(email: str) -> str:
+        message = 'If your email is unverified, a new verification email has been sent.'
+        user = User.objects.filter(email=email).first()
+        if not user or user.email_verified:
+            return message
+
+        token = generate_verification_token(user.id)
+        verification_url = f'{settings.FRONTEND_URL}/verify-email?token={token}'
+
+        db_transaction.on_commit(
+            lambda: EmailService.send_email(
+                to=user.email,
+                subject='Verify your email — Monie',
+                template_name='email/verify_email',
+                context={
+                    'user_name': user.full_name or user.email,
+                    'verification_url': verification_url,
+                },
+            )
+        )
+        return message
 
     @staticmethod
     def record_consent(user: User, consent_type: str, version: str, ip_address: str | None = None) -> UserConsent:

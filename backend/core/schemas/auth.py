@@ -80,6 +80,24 @@ class RegisterIn(BaseModel):
         return v
 
 
+class VerifyEmailIn(BaseModel):
+    token: str
+
+
+class ResendVerificationIn(BaseModel):
+    email: str
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        validator = EmailValidator()
+        try:
+            validator(v)
+        except DjangoValidationError:
+            raise ValueError('Enter a valid email address')
+        return v
+
+
 class UserPasswordUpdate(BaseModel):
     """User password update schema."""
 
