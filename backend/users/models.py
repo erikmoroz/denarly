@@ -120,3 +120,16 @@ class UserConsent(models.Model):
         status = 'withdrawn' if self.withdrawn_at else 'active'
         email = self.user.email if self.user else '[deleted]'
         return f'{email} - {self.consent_type} v{self.version} ({status})'
+
+
+class UserTwoFactor(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='two_factor')
+    is_enabled = models.BooleanField(default=False)
+    encrypted_secret = models.BinaryField()
+    backup_codes = models.JSONField(default=list)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+
+    class Meta:
+        db_table = 'user_two_factor'
