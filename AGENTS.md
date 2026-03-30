@@ -313,6 +313,22 @@ class TestTransactions(AuthMixin, APIClientMixin, TestCase):
         self.assertStatus(403)
 ```
 
+### Test Data: Prefer Factories Over Service Calls
+
+Use factory classes (`WorkspaceFactory`, `WorkspaceMemberFactory`, `UserFactory`) for test setup. Service calls create extra side effects (currencies, budget accounts, memberships) that make assertions unreliable.
+
+```python
+# Bad: service call creates a full workspace with demo fixtures
+workspace = WorkspaceService.create_workspace(user=owner, name='Team')
+
+# Good: factory creates only the records needed
+workspace = WorkspaceFactory(name='Team')
+owner = UserFactory(full_name='Owner', current_workspace=workspace)
+WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
+```
+
+Only use service calls when the test specifically validates service-level behavior (e.g. `test_delete_workspace_*` calling `WorkspaceService.delete_workspace` directly).
+
 ## Frontend Code Style (TypeScript/React)
 
 ### File Structure
@@ -354,6 +370,36 @@ export default function CategoryForm({ id, name, onSave }: Props) {
   )
 }
 ```
+
+### Token-Based Verification Pages
+
+Pages that verify tokens from URL query params follow a consistent `loading → success → error` state machine:
+
+```tsx
+type State = 'loading' | 'success' | 'error'
+
+export default function VerifyPage() {
+  const [searchParams] = useSearchParams()
+  const [state, setState] = useState<State>('loading')
+
+  useEffect(() => {
+    const token = searchParams.get('token')
+    if (!token) {
+      setState('error')
+      return
+    }
+    authApi.verify(token)
+      .then(() => setState('success'))
+      .catch(() => setState('error'))
+  }, [searchParams])
+
+  // Render based on state
+}
+```
+
+- Always handle the missing-token case (`if (!token)` → error state)
+- Public verification pages go outside `ProtectedRoute`; authenticated pages are wrapped in `ProtectedRoute`
+- Success states should offer a navigation link; error states should offer a retry or resend option
 
 ### API Client Pattern
 
@@ -473,6 +519,112 @@ Do not "fix" these to return 404 — the empty array behavior is intentional.
 > python manage.py seed_legal_documents --force  # Force update even if version matches
 > ```
 > Alternatively, use Django admin to create/edit `LegalDocument` records directly.
+
+## Email Patterns
+
+### Sending Email
+
+Use `EmailService.send_email()` with `db_transaction.on_commit()` to ensure emails are only sent after the database transaction succeeds:
+
+```python
+from django.db import transaction as db_transaction
+from common.email import EmailService
+
+class MyService:
+    @staticmethod
+    @db_transaction.atomic
+    def do_something(user, workspace_id):
+        # ... database operations ...
+
+        db_transaction.on_commit(
+            lambda: MyService._send_notification_email(user, workspace_id)
+        )
+
+    @staticmethod
+    def _send_notification_email(user, workspace_id):
+        EmailService.send_email(
+            to=user.email,
+            subject='Something happened — Monie',
+            template_name='email/template_name',
+            context={'user_name': user.full_name or user.email},
+        )
+```
+
+**Rules:**
+- Always use `on_commit` inside `@db_transaction.atomic` methods so emails are not sent if the transaction rolls back.
+- Extract email-sending logic into a separate static method (not a nested function) on the service class. Use a `lambda` in `on_commit` to call it.
+- When registering `on_commit` callbacks inside a loop, capture loop variables via lambda default arguments (`lambda x=val: ...`) to avoid late binding.
+
+### Email Templates
+
+Each email has an HTML and plain text version in `backend/templates/email/`. Templates extend `base.html` / `base.txt`:
+
+```
+templates/email/
+  base.html          # Shared HTML layout (inline CSS, max-width 600px)
+  base.txt           # Shared plain text layout
+  verify_email.html / .txt
+  welcome.html / .txt
+  reset_password.html / .txt
+  password_changed.html / .txt
+  email_change_verify.html / .txt
+  email_change_notify.html / .txt
+  workspace_invitation_new.html / .txt
+  workspace_invitation_existing.html / .txt
+  member_removed.html / .txt
+  member_left.html / .txt
+  workspace_deleted.html / .txt
+  role_changed.html / .txt
+```
+
+**To add a new email template:**
+1. Create `email/my_email.html` extending `email/base.html` with `{% block content %}`, `{% block cta_url %}`, `{% block cta_text %}`
+2. Create `email/my_email.txt` extending `email/base.txt` with `{% block content %}`
+3. Call `EmailService.send_email(template_name='email/my_email', ...)`
+
+### Token Patterns
+
+- **Email verification / generic tokens**: `TimestampSigner` (stateless, configurable expiry via `TOKEN_MAX_AGE` setting):
+  ```python
+  from common.tokens import generate_verification_token, verify_verification_token
+  token = generate_verification_token(user.id)
+  user_id = verify_verification_token(token)  # Returns int or None
+  ```
+
+- **Password reset tokens**: Django's built-in `PasswordResetTokenGenerator` (one-time-use, invalidated on password change):
+  ```python
+  from django.contrib.auth.tokens import default_token_generator
+  token = default_token_generator.make_token(user)
+  valid = default_token_generator.check_token(user, token)
+  ```
+
+- **Email change tokens**: `TimestampSigner` with `sign_object`:
+  ```python
+  from common.tokens import generate_email_change_token, verify_email_change_token
+  token = generate_email_change_token(user.id, new_email)
+  result = verify_email_change_token(token)  # Returns (uid, email) tuple or None
+  ```
+
+### Anti-Enumeration
+
+These endpoints always return 200 with the same generic message regardless of input:
+- `POST /api/auth/forgot-password` — "If an account exists with this email, a reset link has been sent."
+- `POST /api/auth/resend-verification` — "If your email is unverified, a new verification email has been sent."
+
+Never reveal whether an email address is registered.
+
+### Environment Variables
+
+Email configuration is set via environment variables (see `example.env`):
+
+```
+EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_USE_TLS
+DEFAULT_FROM_EMAIL
+FRONTEND_URL              # Used in email links
+TOKEN_MAX_AGE             # Verification token expiry in seconds (default: 7 days)
+```
+
+In tests, `EMAIL_BACKEND` is set to `django.core.mail.backends.locmem.EmailBackend` via `config/test_settings.py`. Use `django.core.mail.outbox` (aliased as `mail.outbox`) to inspect sent emails in tests.
 
 ## Common Patterns
 

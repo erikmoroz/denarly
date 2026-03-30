@@ -95,7 +95,7 @@ frontend/
 - [x] Task 8: Workspace Event Notification Emails
 - [ ] Task 9: Frontend — Password Reset Pages
 - [x] Task 10: Frontend — Email Verification & Change Pages
-- [ ] Task 11: Integration Tests & Cleanup
+- [x] Task 11: Integration Tests & Cleanup
 
 ---
 
