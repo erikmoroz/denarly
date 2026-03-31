@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { authApi } from '../api/client'
 
-type State = 'loading' | 'success' | 'error' | 'resend' | 'resend-success'
+type State = 'loading' | 'success' | 'error' | 'resend' | 'resend-success' | 'resend-error'
 
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams()
@@ -11,16 +11,22 @@ export default function VerifyEmailPage() {
   const [isResending, setIsResending] = useState(false)
 
   useEffect(() => {
-    const token = searchParams.get('token')
-    if (!token) {
-      setState('error')
-      return
+    const verify = async () => {
+      const token = searchParams.get('token')
+      if (!token) {
+        setState('error')
+        return
+      }
+
+      try {
+        await authApi.verifyEmail(token)
+        setState('success')
+      } catch {
+        setState('error')
+      }
     }
 
-    authApi
-      .verifyEmail(token)
-      .then(() => setState('success'))
-      .catch(() => setState('error'))
+    verify()
   }, [searchParams])
 
   const handleResend = async (e: React.FormEvent) => {
@@ -32,7 +38,7 @@ export default function VerifyEmailPage() {
       await authApi.resendVerification(resendEmail)
       setState('resend-success')
     } catch {
-      setState('resend-success')
+      setState('resend-error')
     } finally {
       setIsResending(false)
     }
@@ -127,6 +133,27 @@ export default function VerifyEmailPage() {
               <p className="text-sm text-on-surface-variant">
                 If your email is unverified, a new verification email has been sent.
               </p>
+            </div>
+          )}
+
+          {state === 'resend-error' && (
+            <div className="space-y-4">
+              <div className="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <h3 className="font-headline font-bold text-on-surface text-lg">Something went wrong</h3>
+              <p className="text-sm text-on-surface-variant">
+                Could not send verification email. Please try again later.
+              </p>
+              <button
+                type="button"
+                onClick={() => setState('resend')}
+                className="text-primary hover:text-primary-dim text-sm font-medium"
+              >
+                Try again
+              </button>
             </div>
           )}
         </div>
