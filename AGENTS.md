@@ -106,6 +106,29 @@ from workspaces.models import WRITE_ROLES
 - **Constants**: UPPER_SNAKE_CASE (`WRITE_ROLES`, `TOKEN_KEY`)
 - **Schemas**: Suffix with purpose (`TransactionCreate`, `TransactionOut`, `TransactionImport`)
 
+### Input Normalization
+
+Normalize user inputs (emails, strings, etc.) early in the flow — right after validation — so all downstream logic (uniqueness checks, token generation, email sending) uses the normalized value:
+
+```python
+@staticmethod
+@db_transaction.atomic
+def request_email_change(user, new_email: str, password: str):
+    if not user.check_password(password):
+        raise InvalidPasswordError()
+    new_email = new_email.lower()
+    if new_email == user.email.lower():
+        raise SameEmailError()
+    # ... rest of logic uses normalized new_email
+```
+
+For comparisons, apply normalization on both sides as a defense-in-depth safety net, even if upstream normalization already occurred:
+
+```python
+if user.pending_email.lower() != new_email.lower():
+    raise EmailMismatchError()
+```
+
 ### Return Early Pattern
 
 Use guard clauses and early returns to reduce nesting and improve readability:
@@ -132,7 +155,7 @@ def process_transaction(data):
 
 ### Django Ninja Endpoints
 
-Endpoints are thin wrappers — parse the request, call the service, return the response. Business logic belongs in service classes.
+Endpoints are thin wrappers — parse the request, call the service, return the response. Business logic belongs in service classes. Request-scoped validation that returns HTTP error responses (e.g. token uid/token checking in password reset) may stay in the API layer — only business logic moves to the service.
 
 For workspace-scoped endpoints, use `WorkspaceJWTAuth` which automatically validates that the user has an active workspace:
 
@@ -524,7 +547,9 @@ Do not "fix" these to return 404 — the empty array behavior is intentional.
 
 ### Sending Email
 
-Use `EmailService.send_email()` with `db_transaction.on_commit()` to ensure emails are only sent after the database transaction succeeds:
+Use `EmailService.send_email()` to ensure emails are only sent after the database transaction succeeds. There are two valid patterns depending on the situation:
+
+**Pattern A — Decorator + `on_commit`** (when the method uses `@db_transaction.atomic` for its own DB operations):
 
 ```python
 from django.db import transaction as db_transaction
@@ -550,8 +575,33 @@ class MyService:
         )
 ```
 
+**Pattern B — Context manager + direct call after block** (simpler, no lambda, clearer stack traces):
+
+```python
+class MyService:
+    @staticmethod
+    def do_something(user, new_password: str):
+        with db_transaction.atomic():
+            user.set_password(new_password)
+            user.save()
+            # ... other DB operations ...
+
+        # Direct call after the with block exits (after commit)
+        MyService._send_notification_email(user)
+
+    @staticmethod
+    def _send_notification_email(user):
+        EmailService.send_email(
+            to=user.email,
+            subject='Password changed — Monie',
+            template_name='email/password_changed',
+            context={'user_name': user.full_name or user.email},
+        )
+```
+
 **Rules:**
-- Always use `on_commit` inside `@db_transaction.atomic` methods so emails are not sent if the transaction rolls back.
+- Only use `on_commit` inside `@db_transaction.atomic` methods so emails are not sent if the transaction rolls back. Never use `on_commit` outside an atomic block — it fires immediately anyway, so a direct call is clearer and less misleading.
+- Prefer Pattern B (`with` block + direct call) when the method doesn't already use `@db_transaction.atomic` as a decorator.
 - Extract email-sending logic into a separate static method (not a nested function) on the service class. Use a `lambda` in `on_commit` to call it.
 - When registering `on_commit` callbacks inside a loop, capture loop variables via lambda default arguments (`lambda x=val: ...`) to avoid late binding.
 
