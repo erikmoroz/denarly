@@ -498,12 +498,13 @@ class WorkspaceMemberService:
 
         target_user_email = target_user.email
 
-        target_user.set_password(new_password)
-        target_user.save(update_fields=['password'])
+        with db_transaction.atomic():
+            target_user.set_password(new_password)
+            target_user.save(update_fields=['password'])
 
         from users.services import UserService
 
-        db_transaction.on_commit(lambda: UserService.send_password_changed_email(target_user, changed_by_admin=True))
+        UserService.send_password_changed_email(target_user, changed_by_admin=True)
 
         return {
             'message': 'Password reset successfully',
