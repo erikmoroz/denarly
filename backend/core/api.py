@@ -9,6 +9,7 @@ from common.auth import create_access_token, create_temp_token, decode_temp_toke
 from common.throttle import rate_limit
 from common.utils import get_client_ip
 from core.schemas import DetailOut, ErrorOut, LoginIn, LoginOut, RegisterIn, Token, Verify2FAIn
+from users.exceptions import TwoFactorNotEnabledError
 from users.models import UserTwoFactor
 from workspaces.services import WorkspaceService
 
@@ -89,7 +90,7 @@ def login(request, data: LoginIn):
     return 200, LoginOut(access_token=access_token)
 
 
-@router.post('/verify-2fa', response={200: Token, 401: DetailOut, 429: DetailOut})
+@router.post('/verify-2fa', response={200: Token, 401: DetailOut, 404: DetailOut, 429: DetailOut})
 @rate_limit('verify_2fa', limit=10, period=60)
 def verify_2fa(request, data: Verify2FAIn):
     payload = decode_temp_token(data.temp_token)
@@ -99,6 +100,10 @@ def verify_2fa(request, data: Verify2FAIn):
     user = User.objects.filter(id=payload.get('user_id'), is_active=True).first()
     if not user:
         return 401, {'detail': 'User not found'}
+
+    tf = UserTwoFactor.objects.filter(user=user).first()
+    if not tf or not tf.is_enabled:
+        raise TwoFactorNotEnabledError()
 
     from users.two_factor import TwoFactorService
 

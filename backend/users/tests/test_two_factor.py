@@ -403,3 +403,29 @@ class TestTwoFAExport(_Base):
         self.assertIsNotNone(data['two_factor']['created_at'])
         self.assertNotIn('encrypted_secret', data['two_factor'])
         self.assertNotIn('hashed_recovery_codes', data['two_factor'])
+
+
+class TestVerify2FAEndpoint(_Base):
+    def test_verify_2fa_returns_404_when_2fa_disabled_mid_flow(self):
+        from django.test import Client
+
+        client = Client()
+        self._enable_2fa(self.user)
+
+        login_response = client.post(
+            '/api/auth/login',
+            data='{"email": "owner@example.com", "password": "testpass123"}',
+            content_type='application/json',
+        )
+        self.assertEqual(login_response.status_code, 200)
+        temp_token = login_response.json()['temp_token']
+
+        TwoFactorService.disable(self.user)
+
+        response = client.post(
+            '/api/auth/verify-2fa',
+            data='{"temp_token": "' + temp_token + '", "code": "000000"}',
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertIn('not enabled', response.json()['detail'].lower())
