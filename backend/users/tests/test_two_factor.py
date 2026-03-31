@@ -369,6 +369,19 @@ class TestAdminReset2FA(_Base):
         )
         self.assertEqual(response.status_code, 404)
 
+    def test_reset_when_2fa_pending_setup(self):
+        from django.test import Client
+
+        client = Client()
+        TwoFactorService.setup(self.member)
+
+        response = client.post(
+            self._reset_url(self.member.id),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Bearer {self.admin_token}',
+        )
+        self.assertEqual(response.status_code, 404)
+
 
 class TestTwoFAExport(_Base):
     def test_export_includes_2fa_when_not_configured(self):

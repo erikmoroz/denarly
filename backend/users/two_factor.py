@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from common.crypto import decrypt_secret, encrypt_secret
 from common.exceptions import AuthenticationError, NotFoundError, ValidationError
+from users.exceptions import TwoFactorNotEnabledError
 from users.models import User, UserTwoFactor
 
 
@@ -171,8 +172,8 @@ class TwoFactorService:
             raise WorkspaceMemberAdminInsufficientError('reset 2FA of')
 
         twofa = UserTwoFactor.objects.filter(user_id=target_user_id).first()
-        if not twofa:
-            raise NotFoundError('Two-factor authentication is not enabled for this user')
+        if not twofa or not twofa.is_enabled:
+            raise TwoFactorNotEnabledError()
         twofa.delete()
 
         return {'message': 'Two-factor authentication has been reset', 'user_id': target_user_id}
