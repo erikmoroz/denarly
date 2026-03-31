@@ -1,10 +1,12 @@
 """JWT authentication utilities for Django-Ninja API."""
 
 import datetime
+import uuid
 
 import jwt
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from ninja.errors import HttpError
 from ninja.security import HttpBearer
 
@@ -86,6 +88,7 @@ def create_temp_token(user: User) -> str:
     payload = {
         'user_id': str(user.id),
         'type': '2fa_pending',
+        'jti': str(uuid.uuid4()),
         'iat': now.timestamp(),
         'exp': (now + datetime.timedelta(minutes=5)).timestamp(),
     }
@@ -100,6 +103,34 @@ def decode_temp_token(token: str) -> dict | None:
         return payload
     except jwt.PyJWTError:
         return None
+
+
+def consume_temp_token(token: str) -> dict | None:
+    """Decode a temp token and mark it as consumed via its JTI claim.
+
+    Decodes the JWT, validates it's a 2FA temp token, then checks the
+    Django cache for its JTI. If the JTI is already cached, the token
+    was already used — returns None. Otherwise caches the JTI for 300s
+    (matching token expiry) and returns the payload.
+    """
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    except jwt.PyJWTError:
+        return None
+
+    if payload.get('type') != '2fa_pending':
+        return None
+
+    jti = payload.get('jti')
+    if not jti:
+        return None
+
+    cache_key = f'2fa_temp_token_used:{jti}'
+    if cache.get(cache_key):
+        return None
+
+    cache.set(cache_key, True, 300)
+    return payload
 
 
 def user_to_schema(user: User) -> UserOut:

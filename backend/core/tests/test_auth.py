@@ -533,3 +533,28 @@ class TestLoginWith2FA(AuthTestCase):
 
         self.get('/api/users/me', HTTP_AUTHORIZATION=f'Bearer {temp_token}')
         self.assertStatus(401)
+
+    def test_verify_2fa_temp_token_single_use(self):
+        user, secret = self._register_with_2fa('tokensingleuse@example.com')
+
+        data = self.post(
+            '/api/auth/login',
+            {'email': 'tokensingleuse@example.com', 'password': 'securepassword123'},
+        )
+        self.assertStatus(200)
+        temp_token = data['temp_token']
+
+        code = pyotp.TOTP(secret).now()
+        data = self.post(
+            '/api/auth/verify-2fa',
+            {'temp_token': temp_token, 'code': code},
+        )
+        self.assertStatus(200)
+        self.assertIn('access_token', data)
+
+        code = pyotp.TOTP(secret).now()
+        self.post(
+            '/api/auth/verify-2fa',
+            {'temp_token': temp_token, 'code': code},
+        )
+        self.assertStatus(401)
