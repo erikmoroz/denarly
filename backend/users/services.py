@@ -1,7 +1,5 @@
 """Business logic for the users app."""
 
-import logging
-
 from django.conf import settings
 from django.db import transaction as db_transaction
 
@@ -26,8 +24,6 @@ from users.exceptions import (
     UserSameEmailError,
 )
 from users.models import ConsentType, FontChoices, User, UserConsent, UserPreferences, WeekdayChoices
-
-logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -365,7 +361,6 @@ class UserService:
         }
 
     @staticmethod
-    @db_transaction.atomic
     def delete_account(user: User, password: str) -> dict:
         """
         Permanently delete user account and all associated data (GDPR Article 17).
@@ -391,8 +386,6 @@ class UserService:
         if not user.check_password(password):
             raise UserInvalidPasswordError('Invalid password')
 
-        from django.core.mail import send_mail
-
         from workspaces.models import Workspace, WorkspaceMember
 
         # Capture user details before deletion
@@ -414,47 +407,34 @@ class UserService:
         # Delete solo-owned workspaces and all their data
         deleted_workspace_names = list(owned_workspaces.values_list('name', flat=True))
 
-        from common.services.base import delete_workspace_financial_records
+        with db_transaction.atomic():
+            from common.services.base import delete_workspace_financial_records
 
-        for ws in owned_workspaces:
-            delete_workspace_financial_records(ws.id)
+            for ws in owned_workspaces:
+                delete_workspace_financial_records(ws.id)
 
-        # Delete BudgetAccounts (CASCADEs: BudgetPeriod, Category, Budget, PeriodBalance)
-        # BudgetAccount.default_currency has PROTECT, but currencies are deleted with workspace.
-        from budget_accounts.models import BudgetAccount
+            # Delete BudgetAccounts (CASCADEs: BudgetPeriod, Category, Budget, PeriodBalance)
+            # BudgetAccount.default_currency has PROTECT, but currencies are deleted with workspace.
+            from budget_accounts.models import BudgetAccount
 
-        BudgetAccount.objects.filter(workspace__in=owned_workspaces).delete()
+            BudgetAccount.objects.filter(workspace__in=owned_workspaces).delete()
 
-        # Now delete workspaces (CASCADE deletes currencies, members, etc.)
-        owned_workspaces.delete()
+            # Now delete workspaces (CASCADE deletes currencies, members, etc.)
+            owned_workspaces.delete()
 
-        # Remove memberships from non-owned workspaces (if any remain)
-        WorkspaceMember.objects.filter(user=user).delete()
+            # Remove memberships from non-owned workspaces (if any remain)
+            WorkspaceMember.objects.filter(user=user).delete()
 
-        # Delete user — CASCADE: UserPreferences
-        # SET_NULL: UserConsent (retained for GDPR audit), created_by/updated_by on financial models
-        user.delete()
+            # Delete user — CASCADE: UserPreferences
+            # SET_NULL: UserConsent (retained for GDPR audit), created_by/updated_by on financial models
+            user.delete()
 
-        # Send confirmation email after the transaction commits (non-blocking)
-        def _send_deletion_email():
-            try:
-                send_mail(
-                    subject='Your Monie account has been deleted',
-                    message=(
-                        f'Hi {user_name},\n\n'
-                        'Your Monie account and all associated data have been permanently deleted '
-                        'as requested. This action cannot be undone.\n\n'
-                        'If you did not request this deletion, please contact support immediately.\n\n'
-                        'Thank you for using Monie.\n'
-                    ),
-                    from_email=None,  # uses DEFAULT_FROM_EMAIL from settings
-                    recipient_list=[user_email],
-                    fail_silently=True,
-                )
-            except Exception:
-                logger.exception('Failed to send account deletion confirmation email to %s', user_email)
-
-        db_transaction.on_commit(_send_deletion_email)
+        EmailService.send_email(
+            to=user_email,
+            subject='Your Monie account has been deleted — Monie',
+            template_name='email/account_deleted',
+            context={'user_name': user_name},
+        )
 
         return {'deleted_workspaces': deleted_workspace_names}
 
