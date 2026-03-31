@@ -157,6 +157,10 @@ def process_transaction(data):
 
 Endpoints are thin wrappers — parse the request, call the service, return the response. Business logic belongs in service classes. Request-scoped validation that returns HTTP error responses (e.g. token uid/token checking in password reset) may stay in the API layer — only business logic moves to the service.
 
+**API layer responsibilities:** parsing request data, token/uid validation that returns HTTP error responses, authentication/authorization checks, calling the service, returning the response tuple.
+
+**Service layer responsibilities:** business logic (validation, DB operations, side effects, balance updates, email notifications). If logic involves saving to the database or sending emails, it belongs in the service.
+
 For workspace-scoped endpoints, use `WorkspaceJWTAuth` which automatically validates that the user has an active workspace:
 
 ```python
@@ -352,6 +356,53 @@ WorkspaceMemberFactory(workspace=workspace, user=owner, role='owner')
 
 Only use service calls when the test specifically validates service-level behavior (e.g. `test_delete_workspace_*` calling `WorkspaceService.delete_workspace` directly).
 
+### Test Auth Without AuthMixin
+
+For tests that need an authenticated user but don't fit the `AuthMixin` pattern (e.g., testing a specific user without workspace setup), use factories directly:
+
+```python
+from common.auth import create_access_token
+from common.tests.factories import UserFactory
+
+user = UserFactory(email='test@example.com', full_name='Test')
+user.set_password('testpass123')
+user.save()
+
+token = create_access_token(user)
+headers = {'HTTP_AUTHORIZATION': f'Bearer {token}'}
+```
+
+Avoid `User.objects.get()` queries in test setup — the factory already returns the user instance.
+
+### Testing on_commit Callbacks
+
+Django's `TestCase` wraps each test in a transaction, which means `on_commit` callbacks don't fire until the test transaction ends. To test methods that use `on_commit`, patch it to execute immediately:
+
+```python
+from unittest.mock import patch
+from django.db import transaction
+
+def _immediate_on_commit(func, *args, **kwargs):
+    func()
+
+class TestMyFeature(TestCase):
+    @patch.object(transaction, 'on_commit', side_effect=_immediate_on_commit)
+    def test_sends_email(self, mock_on_commit):
+        # ... test code ...
+        self.assertEqual(len(mail.outbox), 1)
+```
+
+Only patch `on_commit` for the specific tests that need it — don't apply it globally.
+
+### Code Cleanup When Refactoring
+
+When removing code that uses specific imports, also remove the now-unused imports. This applies especially to:
+- `logging` / `logger` when removing the only logging call
+- `send_mail` / `EmailMessage` when migrating to `EmailService`
+- `db_transaction` when removing the only atomic block in a file
+
+Unused imports create noise and can mislead future readers about what a module depends on.
+
 ## Frontend Code Style (TypeScript/React)
 
 ### File Structure
@@ -406,14 +457,20 @@ export default function VerifyPage() {
   const [state, setState] = useState<State>('loading')
 
   useEffect(() => {
-    const token = searchParams.get('token')
-    if (!token) {
-      setState('error')
-      return
+    const verify = async () => {
+      const token = searchParams.get('token')
+      if (!token) {
+        setState('error')
+        return
+      }
+      try {
+        await authApi.verify(token)
+        setState('success')
+      } catch {
+        setState('error')
+      }
     }
-    authApi.verify(token)
-      .then(() => setState('success'))
-      .catch(() => setState('error'))
+    verify()
   }, [searchParams])
 
   // Render based on state
@@ -423,6 +480,22 @@ export default function VerifyPage() {
 - Always handle the missing-token case (`if (!token)` → error state)
 - Public verification pages go outside `ProtectedRoute`; authenticated pages are wrapped in `ProtectedRoute`
 - Success states should offer a navigation link; error states should offer a retry or resend option
+- Use a named `async` function inside `useEffect` with `try/catch/await` — avoid mixing `.then()` chains with async calls
+
+### Frontend State Refresh After Mutations
+
+After operations that change server-side state (e.g., email change, profile update), fetch the full updated object from the server rather than patching local state partially:
+
+```tsx
+// Bad: partial update may miss fields
+updateUser({ email_verified: true })
+
+// Good: fetch full state from server
+const updatedUser = await authApi.getCurrentUser()
+updateUser(updatedUser)
+```
+
+This ensures local state is fully in sync with the backend and avoids stale data.
 
 ### API Client Pattern
 
@@ -604,6 +677,19 @@ class MyService:
 - Prefer Pattern B (`with` block + direct call) when the method doesn't already use `@db_transaction.atomic` as a decorator.
 - Extract email-sending logic into a separate static method (not a nested function) on the service class. Use a `lambda` in `on_commit` to call it.
 - When registering `on_commit` callbacks inside a loop, capture loop variables via lambda default arguments (`lambda x=val: ...`) to avoid late binding.
+- `EmailService.send_email` handles failures internally with logging — do not wrap it in `try/except`. If you need to know whether the email was sent, check its boolean return value.
+
+### Email Subject Format
+
+All email subjects follow the format `{Description} — Monie` using an em-dash (`—`) before the app name:
+
+```python
+subject='Verify your email — Monie'
+subject='Reset your password — Monie'
+subject='Password changed — Monie'
+subject='Your email was changed — Monie'
+subject='Your Monie account has been deleted — Monie'
+```
 
 ### Email Templates
 
@@ -625,12 +711,15 @@ templates/email/
   member_left.html / .txt
   workspace_deleted.html / .txt
   role_changed.html / .txt
+  account_deleted.html / .txt
 ```
 
 **To add a new email template:**
 1. Create `email/my_email.html` extending `email/base.html` with `{% block content %}`, `{% block cta_url %}`, `{% block cta_text %}`
 2. Create `email/my_email.txt` extending `email/base.txt` with `{% block content %}`
 3. Call `EmailService.send_email(template_name='email/my_email', ...)`
+
+**Emails without a CTA button:** When no action can be taken (e.g., account deleted, password changed), do not include a CTA button. Instead, override the `{% block cta_url %}` with a security note paragraph. See `password_changed.html` and `account_deleted.html` for examples.
 
 ### Token Patterns
 
