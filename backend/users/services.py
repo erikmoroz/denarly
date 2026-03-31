@@ -68,7 +68,14 @@ class UserService:
         return user
 
     @staticmethod
-    @db_transaction.atomic
+    def reset_password(user: User, new_password: str) -> None:
+        """Reset user password (after token validation in the API layer)."""
+        with db_transaction.atomic():
+            user.set_password(new_password)
+            user.save(update_fields=['password'])
+        UserService.send_password_changed_email(user)
+
+    @staticmethod
     def change_password(user: User, current_password: str, new_password: str) -> None:
         """Change user password with validation."""
         if not user.check_password(current_password):

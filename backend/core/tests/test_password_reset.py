@@ -58,7 +58,8 @@ class TestResetPassword(AuthTestCase):
         token = default_token_generator.make_token(user)
         return {'uidb64': uidb64, 'token': token, 'new_password': new_password}
 
-    def test_reset_password_success(self):
+    @patch.object(transaction, 'on_commit', side_effect=_immediate_on_commit)
+    def test_reset_password_success(self, mock_on_commit):
         user = self.create_user(email='reset@example.com', password='oldpassword123')
         payload = self._generate_reset_payload(user)
 

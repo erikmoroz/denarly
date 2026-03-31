@@ -152,10 +152,7 @@ def reset_password(request, data: ResetPasswordIn):
     if not default_token_generator.check_token(user, data.token):
         return 400, {'detail': 'Invalid or expired reset link'}
 
-    user.set_password(data.new_password)
-    user.save(update_fields=['password'])
-
-    UserService.send_password_changed_email(user)
+    UserService.reset_password(user, data.new_password)
 
     return 200, {'message': 'Password has been reset successfully'}
 
