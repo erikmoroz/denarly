@@ -1,5 +1,8 @@
 """Django-Ninja API endpoints for authentication (register, login)."""
 
+import random
+import time
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -130,6 +133,8 @@ def forgot_password(request, data: ForgotPasswordIn):
     message = 'If an account exists with this email, a reset link has been sent.'
 
     if not user:
+        # Normalize response time to reduce timing side-channel
+        time.sleep(random.uniform(0.1, 0.3))
         return 200, {'message': message}
 
     UserService.send_reset_password_email(user)

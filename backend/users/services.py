@@ -1,5 +1,8 @@
 """Business logic for the users app."""
 
+import random
+import time
+
 from django.conf import settings
 from django.db import IntegrityError
 from django.db import transaction as db_transaction
@@ -150,6 +153,8 @@ class UserService:
         message = 'If your email is unverified, a new verification email has been sent.'
         user = User.objects.filter(email__iexact=email).first()
         if not user or user.email_verified:
+            # Normalize response time to reduce timing side-channel
+            time.sleep(random.uniform(0.1, 0.3))
             return message
 
         token = generate_verification_token(user.id)
