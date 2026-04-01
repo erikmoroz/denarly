@@ -1,8 +1,22 @@
 """Authentication and authorization schemas."""
 
+from typing import Annotated
+
 from django.core.validators import EmailValidator
 from django.core.validators import ValidationError as DjangoValidationError
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, BeforeValidator, Field, field_validator
+
+
+def _validate_email(v: str) -> str:
+    validator = EmailValidator()
+    try:
+        validator(v)
+    except DjangoValidationError:
+        raise ValueError('Enter a valid email address')
+    return v
+
+
+ValidatedEmail = Annotated[str, BeforeValidator(_validate_email)]
 
 
 class Token(BaseModel):
@@ -85,31 +99,11 @@ class VerifyEmailIn(BaseModel):
 
 
 class ResendVerificationIn(BaseModel):
-    email: str
-
-    @field_validator('email')
-    @classmethod
-    def validate_email(cls, v: str) -> str:
-        validator = EmailValidator()
-        try:
-            validator(v)
-        except DjangoValidationError:
-            raise ValueError('Enter a valid email address')
-        return v
+    email: ValidatedEmail
 
 
 class ForgotPasswordIn(BaseModel):
-    email: str
-
-    @field_validator('email')
-    @classmethod
-    def validate_email(cls, v: str) -> str:
-        validator = EmailValidator()
-        try:
-            validator(v)
-        except DjangoValidationError:
-            raise ValueError('Enter a valid email address')
-        return v
+    email: ValidatedEmail
 
 
 class ResetPasswordIn(BaseModel):
@@ -120,17 +114,7 @@ class ResetPasswordIn(BaseModel):
 
 class EmailChangeRequestIn(BaseModel):
     password: str
-    new_email: str
-
-    @field_validator('new_email')
-    @classmethod
-    def validate_email(cls, v: str) -> str:
-        validator = EmailValidator()
-        try:
-            validator(v)
-        except DjangoValidationError:
-            raise ValueError('Enter a valid email address')
-        return v
+    new_email: ValidatedEmail
 
 
 class EmailChangeConfirmIn(BaseModel):
