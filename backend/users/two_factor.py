@@ -7,6 +7,7 @@ import pyotp
 import qrcode
 import qrcode.image.svg
 from django.conf import settings
+from django.db import transaction as db_transaction
 from django.utils import timezone
 
 from common.crypto import decrypt_secret, encrypt_secret
@@ -49,7 +50,8 @@ def _try_recovery_code(twofa: UserTwoFactor, code: str) -> bool:
     for i, stored_hash in enumerate(twofa.backup_codes):
         if stored_hash == code_hash:
             twofa.backup_codes.pop(i)
-            twofa.save(update_fields=['backup_codes', 'updated_at'])
+            twofa.last_used_at = timezone.now()
+            twofa.save(update_fields=['backup_codes', 'last_used_at', 'updated_at'])
             return True
     return False
 
@@ -124,9 +126,11 @@ class TwoFactorService:
         return {'recovery_codes': recovery_codes}
 
     @staticmethod
+    @db_transaction.atomic
     def verify_code(user: User, code: str) -> bool:
+        """Verify a TOTP or recovery code. Uses select_for_update to prevent concurrent recovery code reuse."""
         try:
-            twofa = UserTwoFactor.objects.get(user=user, is_enabled=True)
+            twofa = UserTwoFactor.objects.select_for_update().get(user=user, is_enabled=True)
         except UserTwoFactor.DoesNotExist:
             return False
 
@@ -138,8 +142,6 @@ class TwoFactorService:
             return True
 
         if _try_recovery_code(twofa, code):
-            twofa.last_used_at = timezone.now()
-            twofa.save(update_fields=['last_used_at', 'updated_at'])
             return True
 
         return False
