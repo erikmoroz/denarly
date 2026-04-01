@@ -89,14 +89,11 @@ def login(request, data: LoginIn):
     - email
     - current_workspace_id
     """
-    try:
-        user = User.objects.get(email=data.email)
-    except User.DoesNotExist:
+    user = User.objects.filter(email__iexact=data.email).first()
+    if not user:
         return 401, {'detail': 'Invalid email or password'}
-
     if not user.check_password(data.password):
         return 401, {'detail': 'Invalid email or password'}
-
     if not user.is_active:
         return 401, {'detail': 'User account is disabled'}
 
