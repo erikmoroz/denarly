@@ -23,6 +23,7 @@ from workspaces.exceptions import (
     WorkspaceOwnerPasswordResetError,
     WorkspaceOwnerRemoveError,
     WorkspaceOwnerRoleChangeError,
+    WorkspacePermissionDeniedError,
 )
 from workspaces.models import Currency, Role, Workspace, WorkspaceMember
 
@@ -86,6 +87,10 @@ class WorkspaceService:
             workspace = Workspace.objects.select_for_update().get(id=workspace_id)
         except Workspace.DoesNotExist:
             raise WorkspaceNotFoundError()
+
+        membership = WorkspaceMember.objects.filter(user=user, workspace=workspace).select_for_update().first()
+        if not membership or membership.role != Role.OWNER:
+            raise WorkspacePermissionDeniedError()
 
         # Gather all users whose current_workspace points to this workspace.
         # The caller (user) is handled separately at the end because they may
