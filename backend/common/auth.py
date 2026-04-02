@@ -105,13 +105,21 @@ def decode_temp_token(token: str) -> dict | None:
         return None
 
 
+def _ttl_from_exp(exp: float) -> int:
+    """Return seconds remaining until the given Unix timestamp, minimum 0."""
+    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    remaining = int(exp - now)
+    return max(remaining, 0)
+
+
 def consume_temp_token(token: str) -> dict | None:
     """Decode a temp token and mark it as consumed via its JTI claim.
 
     Decodes the JWT, validates it's a 2FA temp token, then checks the
     Django cache for its JTI. If the JTI is already cached, the token
-    was already used — returns None. Otherwise caches the JTI for 300s
-    (matching token expiry) and returns the payload.
+    was already used — returns None. Otherwise caches the JTI for the
+    token's remaining lifetime (derived from the exp claim) and returns
+    the payload.
     """
     try:
         payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
@@ -129,7 +137,11 @@ def consume_temp_token(token: str) -> dict | None:
     if cache.get(cache_key):
         return None
 
-    cache.set(cache_key, True, 300)
+    ttl = _ttl_from_exp(payload.get('exp', 0))
+    if ttl == 0:
+        return None
+
+    cache.set(cache_key, True, ttl)
     return payload
 
 
