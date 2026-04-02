@@ -4,8 +4,11 @@ import random
 import time
 
 from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
 from django.db import IntegrityError
 from django.db import transaction as db_transaction
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 from common.email import EmailService
 from common.exceptions import ValidationError
@@ -88,10 +91,16 @@ class UserService:
         UserService.send_password_changed_email(user)
 
     @staticmethod
-    def send_reset_password_email(user) -> None:
-        from django.contrib.auth.tokens import default_token_generator
-        from django.utils.encoding import force_bytes
-        from django.utils.http import urlsafe_base64_encode
+    def send_reset_password_email(email: str) -> None:
+        """Send a password reset email if the user exists.
+
+        Returns silently (with a small delay) when no user is found, to normalize
+        response timing and avoid leaking whether an email address is registered.
+        """
+        user = User.objects.filter(email=email).first()
+        if not user:
+            time.sleep(random.uniform(0.1, 0.3))
+            return
 
         uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
