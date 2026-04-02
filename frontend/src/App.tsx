@@ -74,6 +74,8 @@ function App() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/reconsent" element={<ProtectedRoute><ReConsentPage /></ProtectedRoute>} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
+          {/* Requires auth: email change token is validated against the logged-in user's ID.
+              Users opening the link in a new session must log in first, then re-click the link. */}
           <Route path="/confirm-email-change" element={<ProtectedRoute><ConfirmEmailChangePage /></ProtectedRoute>} />
 
           {/* Protected routes */}

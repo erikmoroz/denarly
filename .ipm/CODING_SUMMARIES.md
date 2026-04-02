@@ -35,3 +35,15 @@
 **Decision:** Removed `random` and `time` imports from `core/api.py` since they're no longer used there. Function-level Django utility imports in `send_reset_password_email` were promoted to top-level — no circular import risk since these are standard Django utilities.
 
 **Convention reinforced:** All Django utility imports should be at the top level unless there's a circular import risk. Anti-enumeration service methods should have docstrings explaining the `time.sleep` timing normalization.
+
+## Task 4: Document ConfirmEmailChangePage ProtectedRoute UX trade-off
+
+**Files changed:** `frontend/src/App.tsx`
+
+**Pattern:** Inline comments documenting UX trade-offs for architectural decisions.
+
+**Summary:** Added a JSX comment above the `/confirm-email-change` route explaining that `ProtectedRoute` is required because the backend validates the email change token against the logged-in user's ID. The trade-off is that users opening the link in a new session must log in first, then re-click the link. A full fix would require `ProtectedRoute` to preserve query params through the login redirect, which is out of scope.
+
+**Decision:** No code changes — documentation-only task. The comment follows the existing JSX comment style in the same file (e.g., `{/* Public routes */}`, `{/* Protected routes */}`).
+
+**Convention reinforced:** When a route or component has a non-obvious UX trade-off, document it with an inline comment rather than leaving it implicit.
