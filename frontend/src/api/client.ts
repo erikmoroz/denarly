@@ -186,6 +186,12 @@ export const authApi = {
 
   confirmEmailChange: (token: string) =>
     api.post('/auth/confirm-email-change', { token }),
+
+  forgotPassword: (email: string) =>
+    api.post('/auth/forgot-password', { email }),
+
+  resetPassword: (data: { uidb64: string; token: string; new_password: string }) =>
+    api.post('/auth/reset-password', data),
 };
 
 // ============= Workspaces API =============
