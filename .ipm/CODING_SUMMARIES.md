@@ -47,3 +47,27 @@
 **Decision:** No code changes — documentation-only task. The comment follows the existing JSX comment style in the same file (e.g., `{/* Public routes */}`, `{/* Protected routes */}`).
 
 **Convention reinforced:** When a route or component has a non-obvious UX trade-off, document it with an inline comment rather than leaving it implicit.
+
+## Task 5: Add forgotPassword and resetPassword API methods to authApi
+
+**Files changed:** `frontend/src/api/client.ts`
+
+**Pattern:** Frontend API client methods mirror backend endpoint schemas exactly.
+
+**Summary:** Added `forgotPassword(email: string)` and `resetPassword(data: { uidb64, token, new_password })` to the `authApi` object. Parameter names match the backend `ForgotPasswordIn` and `ResetPasswordIn` Pydantic schemas exactly (`email`, `uidb64`, `token`, `new_password`).
+
+**Decision:** No return type unwrapping (`.then(res => res.data)`) since these endpoints are called from pages that don't need the response data — both return generic success messages. Follows the same style as `resendVerification` and `verifyEmail` in the same object.
+
+**Convention reinforced:** New `authApi` methods for anti-enumeration or simple-action endpoints don't need return type generics when the calling code doesn't use the response data.
+
+## Task 6: Add safe parsing for TOKEN_MAX_AGE env var
+
+**Files changed:** `backend/config/settings.py`, `backend/config/utils.py` (new)
+
+**Pattern:** Reusable `get_int_env(key, default)` helper for safe env var parsing in settings.
+
+**Summary:** Created `config/utils.py` with a `get_int_env` function that wraps `int(os.getenv(...))` with `ValueError`/`TypeError` handling and a clear error message. Replaced the bare `int(os.getenv('TOKEN_MAX_AGE', ...))` in `settings.py` with a one-liner using `get_int_env`.
+
+**Decision:** Placed `get_int_env` in `config/utils.py` rather than `common/` because it reads env vars during Django startup (settings initialization), before apps are fully loaded. Importing from `common/` at that point risks circular imports. The function is a configuration concern, not business logic.
+
+**Convention reinforced:** Settings-level utility functions belong in `config/utils.py`, not in app-level modules like `common/`. This avoids circular import risks during Django startup.

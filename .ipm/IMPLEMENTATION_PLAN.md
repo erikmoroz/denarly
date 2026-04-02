@@ -19,8 +19,8 @@ Fix six issues found during code review of the email infrastructure feature bran
 - [x] Task 2: Backend — Move `resend_verification` anti-enumeration concerns to API layer
 - [x] Task 3: Backend — Extract `forgot_password` logic into a service method
 - [x] Task 4: Document — `ConfirmEmailChangePage` ProtectedRoute UX trade-off (no code change)
-- [ ] Task 5: Frontend — Add `forgotPassword` and `resetPassword` API methods
-- [ ] Task 6: Backend — Add safe parsing for `TOKEN_MAX_AGE` env var
+- [x] Task 5: Frontend — Add `forgotPassword` and `resetPassword` API methods
+- [x] Task 6: Backend — Add safe parsing for `TOKEN_MAX_AGE` env var
 
 ---
 
