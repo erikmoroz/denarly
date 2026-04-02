@@ -361,3 +361,60 @@ The check is now post-increment (`count > limit`) instead of pre-increment (`cou
 **Key detail:** The `ValueError` fallback handles the edge case where the cache key expires between `cache.add()` returning `False` and `cache.incr()` being called — `cache.incr()` raises `ValueError` on a missing key.
 
 **Files changed:** `backend/common/throttle.py`, `backend/common/tests/test_throttle.py`
+
+---
+
+## Cache TTL Derived from Token Expiry
+
+### Dynamic TTL via `_ttl_from_exp` Helper
+
+**Context:** Round 3, Task 4 — Derive `consume_temp_token` cache TTL from token expiry
+
+`consume_temp_token` previously hardcoded `cache.set(cache_key, True, 300)` (5 minutes). If the temp token TTL was ever changed via settings, the cache TTL wouldn't follow — a consumed token could expire from cache before the JWT expired, allowing replay.
+
+**Established pattern:** Extract TTL calculation into a reusable helper function rather than inlining it. This makes the logic testable and reusable:
+
+```python
+def _ttl_from_exp(exp: float) -> int:
+    """Return seconds remaining until the given Unix timestamp, minimum 0."""
+    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    remaining = int(exp - now)
+    return max(remaining, 0)
+```
+
+Usage in `consume_temp_token`:
+```python
+ttl = _ttl_from_exp(payload.get('exp', 0))
+if ttl == 0:
+    return None
+cache.set(cache_key, True, ttl)
+```
+
+If `ttl == 0`, the token is already expired and `None` is returned without caching — this prevents storing a consumed-mark for an already-dead token.
+
+**Files changed:** `backend/common/auth.py`
+
+---
+
+## Defense-in-Depth Deletion
+
+### Explicit `UserTwoFactor` Deletion in `delete_account`
+
+**Context:** Round 3, Task 5 — Explicitly delete `UserTwoFactor` records in `UserService.delete_account`
+
+`UserTwoFactor` has `on_delete=CASCADE` on its `user` FK, so Django cascade-deletes it when the User is deleted. However, following the established pattern in AGENTS.md for explicit cleanup of dependent records, the 2FA records should be explicitly deleted before `user.delete()` for clarity and robustness. If `delete_account` is later refactored to not delete the User row directly, the 2FA records would otherwise remain.
+
+**Pattern:** Add explicit `.filter(user=user).delete()` before `user.delete()`, with a comment explaining it's defense-in-depth:
+
+```python
+# Delete 2FA records (CASCADE handles this, but explicit for defense-in-depth)
+from users.models import UserTwoFactor
+
+UserTwoFactor.objects.filter(user=user).delete()
+
+user.delete()
+```
+
+The `export_all_data()` method already includes 2FA data in its export, and it runs before deletion, so no export changes were needed.
+
+**Files changed:** `backend/users/services.py`

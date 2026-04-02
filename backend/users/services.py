@@ -255,6 +255,11 @@ class UserService:
         # Remove memberships from non-owned workspaces (if any remain)
         WorkspaceMember.objects.filter(user=user).delete()
 
+        # Delete 2FA records (CASCADE handles this, but explicit for defense-in-depth)
+        from users.models import UserTwoFactor
+
+        UserTwoFactor.objects.filter(user=user).delete()
+
         # Delete user — CASCADE: UserPreferences
         # SET_NULL: UserConsent (retained for GDPR audit), created_by/updated_by on financial models
         user.delete()
