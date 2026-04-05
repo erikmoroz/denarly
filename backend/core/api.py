@@ -131,7 +131,8 @@ def forgot_password(request, data: ForgotPasswordIn):
     return 200, {'message': 'If an account exists with this email, a reset link has been sent.'}
 
 
-@router.post('/reset-password', response={200: MessageOut, 400: DetailOut})
+@router.post('/reset-password', response={200: MessageOut, 400: DetailOut, 429: DetailOut})
+@rate_limit('reset_password', limit=5, period=60)
 def reset_password(request, data: ResetPasswordIn):
     from users.services import UserService
 

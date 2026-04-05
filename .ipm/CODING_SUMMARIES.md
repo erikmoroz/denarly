@@ -71,3 +71,27 @@
 **Decision:** Placed `get_int_env` in `config/utils.py` rather than `common/` because it reads env vars during Django startup (settings initialization), before apps are fully loaded. Importing from `common/` at that point risks circular imports. The function is a configuration concern, not business logic.
 
 **Convention reinforced:** Settings-level utility functions belong in `config/utils.py`, not in app-level modules like `common/`. This avoids circular import risks during Django startup.
+
+## Round 5, Task 1: Add rate limiting to `/reset-password` endpoint
+
+**Files changed:** `backend/core/api.py`
+
+**Pattern:** All auth endpoints that consume tokens or perform sensitive operations should have `@rate_limit` with `429: DetailOut` in the response types.
+
+**Summary:** Added `@rate_limit('reset_password', limit=5, period=60)` to the `reset_password` endpoint, along with `429: DetailOut` in the response type union. This is consistent with `register`, `login`, `resend_verification`, and `forgot_password` which all use the same decorator + response type pattern.
+
+**Decision:** Used 5/60s limit (tighter than general endpoints) to allow legitimate retries while preventing brute-force. The `default_token_generator` tokens are one-time-use, so this is defense-in-depth.
+
+**Convention reinforced:** Every auth endpoint that modifies state (register, login, forgot-password, reset-password, resend-verification) should have `@rate_limit` with `429: DetailOut`. Token-consumption endpoints can use tighter limits than token-initiation endpoints.
+
+## Round 5, Task 2: Refresh auth context after email verification in VerifyEmailPage
+
+**Files changed:** `frontend/src/pages/VerifyEmailPage.tsx`, `frontend/src/pages/ConfirmEmailChangePage.tsx`
+
+**Pattern:** Token verification pages should refresh the auth context after a successful server-side operation, with an inner try/catch for the non-critical fetch.
+
+**Summary:** `VerifyEmailPage` now calls `authApi.getCurrentUser()` + `updateUser()` after successful verification. The fetch is wrapped in an inner try/catch so a failed context refresh (e.g., user not logged in) doesn't suppress the success state. Also applied the same inner try/catch pattern to `ConfirmEmailChangePage` for consistency — previously a failed `getCurrentUser()` there would show an error despite the email change succeeding.
+
+**Decision:** The inner try/catch is necessary because `VerifyEmailPage` is a public page — the user may not be logged in, so `getCurrentUser()` could 401. The axios interceptor would redirect to login, which would be wrong since verification succeeded. For `ConfirmEmailChangePage` (behind `ProtectedRoute`), the 401 is less likely but the pattern is still more robust.
+
+**Convention reinforced:** Token verification pages that update server state should call `getCurrentUser()` + `updateUser()` after the primary operation succeeds, wrapped in an inner try/catch. The inner catch should have a brief comment explaining the non-critical nature of the failure.

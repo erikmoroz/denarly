@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { authApi } from '../api/client'
+import { useAuth } from '../contexts/AuthContext'
 
 type State = 'loading' | 'success' | 'error' | 'resend' | 'resend-success' | 'resend-error'
 
@@ -9,6 +10,7 @@ export default function VerifyEmailPage() {
   const [state, setState] = useState<State>('loading')
   const [resendEmail, setResendEmail] = useState('')
   const [isResending, setIsResending] = useState(false)
+  const { updateUser } = useAuth()
 
   useEffect(() => {
     const verify = async () => {
@@ -20,6 +22,12 @@ export default function VerifyEmailPage() {
 
       try {
         await authApi.verifyEmail(token)
+        try {
+          const updatedUser = await authApi.getCurrentUser()
+          updateUser(updatedUser)
+        } catch {
+          // Non-critical: verification succeeded, context refresh failed
+        }
         setState('success')
       } catch {
         setState('error')
@@ -27,7 +35,7 @@ export default function VerifyEmailPage() {
     }
 
     verify()
-  }, [searchParams])
+  }, [searchParams, updateUser])
 
   const handleResend = async (e: React.FormEvent) => {
     e.preventDefault()

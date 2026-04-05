@@ -20,8 +20,12 @@ export default function ConfirmEmailChangePage() {
 
       try {
         await authApi.confirmEmailChange(token)
-        const updatedUser = await authApi.getCurrentUser()
-        updateUser(updatedUser)
+        try {
+          const updatedUser = await authApi.getCurrentUser()
+          updateUser(updatedUser)
+        } catch {
+          // Non-critical: confirmation succeeded, but context refresh failed.
+        }
         setState('success')
       } catch {
         setState('error')
