@@ -109,6 +109,18 @@ def delete(workspace_id: int, account_id: int) -> None:
 
 > **When adding a new model with `on_delete=SET_NULL`**: Update every parent deletion service that could leave orphans. Also update `UserService.delete_account()` and `export_all_data()` per GDPR rules.
 
+### Defense-in-Depth Deletion in `delete_account`
+
+Even models with `on_delete=CASCADE` should be explicitly deleted in `UserService.delete_account()` before `user.delete()`. This ensures robustness if the deletion flow is ever refactored to not delete the User row directly, and makes the data cleanup order clear and auditable.
+
+```python
+# Explicit deletions before user.delete()
+UserTwoFactor.objects.filter(user=user).delete()  # CASCADE handles this, but explicit for defense-in-depth
+user.delete()
+```
+
+> **When adding a new model owned by User**: Explicitly delete it in `delete_account()` regardless of `on_delete` behavior.
+
 ## Backend Code Style (Python)
 
 ### Imports
@@ -268,6 +280,25 @@ class WorkspaceService:
         WorkspaceService._send_existing_invite(user, workspace)
 ```
 
+### Service-Layer Authorization (Defense-in-Depth)
+
+Service methods that perform destructive operations should validate authorization themselves, not rely solely on API-layer checks. This prevents accidental misuse if the service is called from a management command or future endpoint.
+
+```python
+@staticmethod
+@db_transaction.atomic
+def delete_workspace(user, workspace_id: int) -> None:
+    try:
+        workspace = Workspace.objects.select_for_update().get(id=workspace_id)
+    except Workspace.DoesNotExist:
+        raise WorkspaceNotFoundError()
+
+    membership = WorkspaceMember.objects.filter(user=user, workspace=workspace).select_for_update().first()
+    if not membership or membership.role != Role.OWNER:
+        raise WorkspacePermissionDeniedError()
+    # ... rest of logic
+```
+
 ### Concurrent Safety with `select_for_update`
 
 For operations that must be atomic under concurrent requests (e.g., consuming a one-time recovery code), use `select_for_update()` to acquire a row-level lock and combine related field updates into a single `save()`:
@@ -296,6 +327,10 @@ Two decorators are available in `common/throttle.py`:
 
 - **`rate_limit(key_prefix, limit, period)`** — Keys by client IP only. Use for most endpoints.
 - **`rate_limit_by_key(key_prefix, key_extractor, limit, period)`** — Keys by client IP + custom key (e.g., `user_id` from a temp token). Use when an attacker could rotate IPs to bypass IP-only limits.
+
+Both decorators use atomic cache operations (`cache.add()` + `cache.incr()`) via `_atomic_increment()` to eliminate TOCTOU race conditions. Do not use `cache.get()` → `cache.set()` patterns in rate limiting.
+
+Key extractors for tokens must return a unique value (e.g., `str(uuid.uuid4())`) for invalid tokens, not a fixed string like `'invalid'`. A fixed string lets attackers on a shared IP exhaust the bucket and block legitimate users.
 
 All rate limit `limit` and `period` values **must** be configured via Django settings backed by env vars, not hardcoded. Each setting needs an inline comment explaining its purpose:
 
@@ -326,6 +361,15 @@ Two functions exist in `common/auth.py` for temp tokens:
 - **`consume_temp_token(token)`** — Consumes the token (marks its JTI as used in cache). Returns `None` on replay. Use when the token should be single-use (e.g., `verify_2fa`).
 
 Never use `decode_temp_token` where `consume_temp_token` is appropriate — a consumed token must not be replayable.
+
+The cache TTL for consumed tokens is derived from the token's `exp` claim via `_ttl_from_exp()`, not hardcoded. This ensures the cache TTL always matches the remaining token lifetime, regardless of what TTL is configured for temp token creation. If `ttl == 0` (token already expired), `None` is returned without caching.
+
+```python
+ttl = _ttl_from_exp(payload.get('exp', 0))
+if ttl == 0:
+    return None
+cache.set(cache_key, True, ttl)
+```
 
 ### Check Object State, Not Just Existence
 
