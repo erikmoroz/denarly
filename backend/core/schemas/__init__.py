@@ -15,10 +15,15 @@ Schemas are organized by domain in separate modules:
 # =============================================================================
 
 from core.schemas.auth import (
+    EmailChangeConfirmIn,
+    EmailChangeRequestIn,
+    ForgotPasswordIn,
     LoginIn,
     LoginOut,
     RefreshToken,
     RegisterIn,
+    ResendVerificationIn,
+    ResetPasswordIn,
     Token,
     TwoFADisableIn,
     TwoFARegenerateIn,
@@ -29,6 +34,7 @@ from core.schemas.auth import (
     TwoFAVerifySetupOut,
     UserPasswordUpdate,
     Verify2FAIn,
+    VerifyEmailIn,
 )
 
 # =============================================================================
@@ -48,7 +54,13 @@ from core.schemas.consent import ConsentIn, ConsentOut, ConsentStatusOut
 # =============================================================================
 # GDPR Schemas
 # =============================================================================
-from core.schemas.gdpr import AccountDeleteCheckOut, AccountDeleteIn, AccountDeleteOut
+from core.schemas.gdpr import (
+    AccountDeleteCheckOut,
+    AccountDeleteIn,
+    AccountDeleteOut,
+    FullImportIn,
+    ImportResultOut,
+)
 
 # =============================================================================
 # User Schemas
@@ -87,6 +99,12 @@ __all__ = [
     'TwoFADisableIn',
     'TwoFARegenerateIn',
     'TwoFARegenerateOut',
+    'VerifyEmailIn',
+    'ResendVerificationIn',
+    'ForgotPasswordIn',
+    'ResetPasswordIn',
+    'EmailChangeRequestIn',
+    'EmailChangeConfirmIn',
     # Users
     'UserBase',
     'UserOut',
@@ -110,4 +128,6 @@ __all__ = [
     'AccountDeleteIn',
     'AccountDeleteCheckOut',
     'AccountDeleteOut',
+    'FullImportIn',
+    'ImportResultOut',
 ]

@@ -4,13 +4,31 @@ import uuid
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from ninja import Router
 
-from common.auth import consume_temp_token, create_access_token, create_temp_token, decode_temp_token
+from common.auth import JWTAuth, consume_temp_token, create_access_token, create_temp_token, decode_temp_token
 from common.throttle import rate_limit, rate_limit_by_key
 from common.utils import get_client_ip
-from core.schemas import DetailOut, ErrorOut, LoginIn, LoginOut, RegisterIn, Token, Verify2FAIn
+from core.schemas import (
+    DetailOut,
+    EmailChangeConfirmIn,
+    EmailChangeRequestIn,
+    ErrorOut,
+    ForgotPasswordIn,
+    LoginIn,
+    LoginOut,
+    MessageOut,
+    RegisterIn,
+    ResendVerificationIn,
+    ResetPasswordIn,
+    Token,
+    Verify2FAIn,
+    VerifyEmailIn,
+)
 from users.exceptions import TwoFactorNotEnabledError
 from users.models import UserTwoFactor
 from workspaces.services import WorkspaceService
@@ -56,6 +74,8 @@ def register(request, data: RegisterIn):
         UserService.record_consent(user, ConsentType.TERMS_OF_SERVICE, data.accepted_terms_version, ip)
         UserService.record_consent(user, ConsentType.PRIVACY_POLICY, data.accepted_privacy_version, ip)
 
+        transaction.on_commit(lambda: UserService.send_registration_emails(user))
+
     access_token = create_access_token(user)
 
     return 201, {
@@ -73,14 +93,11 @@ def login(request, data: LoginIn):
     If the user has 2FA enabled, returns a temporary token
     that must be verified before issuing a full JWT.
     """
-    try:
-        user = User.objects.get(email=data.email)
-    except User.DoesNotExist:
+    user = User.objects.filter(email=data.email).first()
+    if not user:
         return 401, {'detail': 'Invalid email or password'}
-
     if not user.check_password(data.password):
         return 401, {'detail': 'Invalid email or password'}
-
     if not user.is_active:
         return 401, {'detail': 'User account is disabled'}
 
@@ -131,3 +148,64 @@ def verify_2fa(request, data: Verify2FAIn):
 
     access_token = create_access_token(user)
     return 200, {'access_token': access_token, 'token_type': 'bearer'}
+
+
+@router.post('/verify-email', response={200: MessageOut, 400: DetailOut})
+def verify_email(request, data: VerifyEmailIn):
+    from users.services import UserService
+
+    UserService.verify_email(data.token)
+    return 200, {'message': 'Email verified successfully'}
+
+
+@router.post('/resend-verification', response={200: MessageOut, 429: DetailOut})
+@rate_limit('resend_verification', limit=3, period=3600)
+def resend_verification(request, data: ResendVerificationIn):
+    from users.services import UserService
+
+    UserService.resend_verification(data.email)
+    return 200, {'message': 'If your email is unverified, a new verification email has been sent.'}
+
+
+@router.post('/forgot-password', response={200: MessageOut, 429: DetailOut})
+@rate_limit('forgot_password', limit=3, period=3600)
+def forgot_password(request, data: ForgotPasswordIn):
+    from users.services import UserService
+
+    UserService.send_reset_password_email(data.email)
+    return 200, {'message': 'If an account exists with this email, a reset link has been sent.'}
+
+
+@router.post('/reset-password', response={200: MessageOut, 400: DetailOut, 429: DetailOut})
+@rate_limit('reset_password', limit=5, period=60)
+def reset_password(request, data: ResetPasswordIn):
+    from users.services import UserService
+
+    try:
+        uid = force_str(urlsafe_base64_decode(data.uidb64))
+        user = User.objects.get(pk=uid)
+    except (User.DoesNotExist, ValueError, TypeError):
+        return 400, {'detail': 'Invalid reset link'}
+
+    if not default_token_generator.check_token(user, data.token):
+        return 400, {'detail': 'Invalid or expired reset link'}
+
+    UserService.reset_password(user, data.new_password)
+
+    return 200, {'message': 'Password has been reset successfully'}
+
+
+@router.post('/request-email-change', response={200: MessageOut, 400: DetailOut}, auth=JWTAuth())
+def request_email_change(request, data: EmailChangeRequestIn):
+    from users.services import UserService
+
+    UserService.request_email_change(request.auth, data.password, data.new_email)
+    return 200, {'message': 'Verification email sent to your new address'}
+
+
+@router.post('/confirm-email-change', response={200: MessageOut, 400: DetailOut}, auth=JWTAuth())
+def confirm_email_change(request, data: EmailChangeConfirmIn):
+    from users.services import UserService
+
+    UserService.confirm_email_change(request.auth, data.token)
+    return 200, {'message': 'Email changed successfully'}

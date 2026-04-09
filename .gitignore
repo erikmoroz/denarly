@@ -7,7 +7,7 @@ backend/.env
 *.env
 !example.env
 
-# macOS
+# OS
 .DS_Store
 
 # IDE
