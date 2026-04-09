@@ -85,9 +85,8 @@ class TwoFactorService:
 
     @staticmethod
     def verify_and_enable(user: User, code: str) -> dict:
-        try:
-            twofa = UserTwoFactor.objects.get(user=user, is_enabled=False)
-        except UserTwoFactor.DoesNotExist:
+        twofa = UserTwoFactor.objects.filter(user=user, is_enabled=False).first()
+        if not twofa:
             raise NotFoundError('No pending two-factor setup found')
 
         secret = decrypt_secret(twofa.encrypted_secret)
@@ -103,9 +102,8 @@ class TwoFactorService:
 
     @staticmethod
     def disable(user: User) -> None:
-        try:
-            twofa = UserTwoFactor.objects.get(user=user, is_enabled=True)
-        except UserTwoFactor.DoesNotExist:
+        twofa = UserTwoFactor.objects.filter(user=user, is_enabled=True).first()
+        if not twofa:
             raise NotFoundError('Two-factor authentication is not enabled')
         twofa.delete()
 
@@ -122,9 +120,8 @@ class TwoFactorService:
 
     @staticmethod
     def regenerate_codes(user: User) -> dict:
-        try:
-            twofa = UserTwoFactor.objects.get(user=user, is_enabled=True)
-        except UserTwoFactor.DoesNotExist:
+        twofa = UserTwoFactor.objects.filter(user=user, is_enabled=True).first()
+        if not twofa:
             raise NotFoundError('Two-factor authentication is not enabled')
 
         recovery_codes = _generate_recovery_codes()
