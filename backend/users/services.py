@@ -178,7 +178,6 @@ class UserService:
         )
 
     @staticmethod
-    @db_transaction.atomic
     def request_email_change(user: User, password: str, new_email: str) -> None:
         if not user.check_password(password):
             raise UserInvalidPasswordError()
@@ -191,28 +190,29 @@ class UserService:
         if User.objects.filter(email=new_email).exists():
             raise UserEmailAlreadyInUseError()
 
-        user.pending_email = new_email
-        user.save(update_fields=['pending_email'])
+        with db_transaction.atomic():
+            user.pending_email = new_email
+            user.save(update_fields=['pending_email'])
 
         token = generate_email_change_token(user.id, new_email)
         confirm_url = f'{settings.FRONTEND_URL}/confirm-email-change?token={token}'
-        user_name = user.full_name or user.email
 
-        db_transaction.on_commit(
-            lambda: EmailService.send_email(
-                to=new_email,
-                subject='Confirm your new email — Monie',
-                template_name='email/email_change_verify',
-                context={
-                    'user_name': user_name,
-                    'confirm_url': confirm_url,
-                    'new_email': new_email,
-                },
-            )
+        UserService._send_email_change_verify_email(user, new_email, confirm_url)
+
+    @staticmethod
+    def _send_email_change_verify_email(user, new_email, confirm_url):
+        EmailService.send_email(
+            to=new_email,
+            subject='Confirm your new email — Monie',
+            template_name='email/email_change_verify',
+            context={
+                'user_name': user.full_name or user.email,
+                'confirm_url': confirm_url,
+                'new_email': new_email,
+            },
         )
 
     @staticmethod
-    @db_transaction.atomic
     def confirm_email_change(user: User, token: str) -> None:
         result = verify_email_change_token(token)
         if not result:
@@ -229,27 +229,29 @@ class UserService:
             raise UserEmailAlreadyInUseError()
 
         old_email = user.email
-        user.email = new_email
-        user.pending_email = ''
-        user.email_verified = True
-        try:
-            user.save(update_fields=['email', 'pending_email', 'email_verified'])
-        except IntegrityError:
-            raise UserEmailAlreadyInUseError()
 
-        user_name = user.full_name or new_email
+        with db_transaction.atomic():
+            user.email = new_email
+            user.pending_email = ''
+            user.email_verified = True
+            try:
+                user.save(update_fields=['email', 'pending_email', 'email_verified'])
+            except IntegrityError:
+                raise UserEmailAlreadyInUseError()
 
-        db_transaction.on_commit(
-            lambda: EmailService.send_email(
-                to=old_email,
-                subject='Your email was changed — Monie',
-                template_name='email/email_change_notify',
-                context={
-                    'user_name': user_name,
-                    'old_email': old_email,
-                    'new_email': new_email,
-                },
-            )
+        UserService._send_email_change_notify_email(user, old_email, new_email)
+
+    @staticmethod
+    def _send_email_change_notify_email(user, old_email, new_email):
+        EmailService.send_email(
+            to=old_email,
+            subject='Your email was changed — Monie',
+            template_name='email/email_change_notify',
+            context={
+                'user_name': user.full_name or new_email,
+                'old_email': old_email,
+                'new_email': new_email,
+            },
         )
 
     @staticmethod

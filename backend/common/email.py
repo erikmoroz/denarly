@@ -17,7 +17,7 @@ class EmailService:
         from_email: str | None = None,
     ) -> bool:
         context = context or {}
-        context.setdefault('frontend_url', getattr(settings, 'FRONTEND_URL', 'http://localhost:5173'))
+        context.setdefault('frontend_url', settings.FRONTEND_URL)
 
         try:
             text_content = render_to_string(f'{template_name}.txt', context)

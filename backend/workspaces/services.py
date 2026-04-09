@@ -73,7 +73,6 @@ class WorkspaceService:
         return workspace
 
     @staticmethod
-    @db_transaction.atomic
     def delete_workspace(user, workspace_id: int) -> None:
         """
         Deletes workspace and all its data.
@@ -88,18 +87,13 @@ class WorkspaceService:
         except Workspace.DoesNotExist:
             raise WorkspaceNotFoundError()
 
-        # Gather all users whose current_workspace points to this workspace.
-        # The caller (user) is handled separately at the end because they may
-        # still be mid-request; other affected users are updated via bulk_update.
         affected_user_ids = list(
             UserModel.objects.filter(current_workspace_id=workspace_id).exclude(id=user.id).values_list('id', flat=True)
         )
         all_affected_ids = affected_user_ids + [user.id]
 
-        # Lock all affected user rows
         list(UserModel.objects.filter(id__in=all_affected_ids).select_for_update())
 
-        # Re-fetch affected users after acquiring lock
         affected_users = list(UserModel.objects.filter(id__in=affected_user_ids))
 
         memberships = (
@@ -113,33 +107,30 @@ class WorkspaceService:
             if uid not in next_ws_map:
                 next_ws_map[uid] = wid
 
-        delete_workspace_financial_records(workspace_id)
-
-        from budget_accounts.models import BudgetAccount
-
-        BudgetAccount.objects.filter(workspace_id=workspace_id).delete()
-
         workspace_name = workspace.name
         deleter_name = user.full_name or user.email
 
-        for affected_user in affected_users:
-            au_email = affected_user.email
-            au_name = affected_user.full_name or au_email
-            db_transaction.on_commit(
-                lambda e=au_email, n=au_name: WorkspaceService._send_workspace_deleted_email(
-                    e, n, workspace_name, deleter_name
-                )
-            )
+        email_recipients = [(au.email, au.full_name or au.email) for au in affected_users]
 
-        workspace.delete()
+        with db_transaction.atomic():
+            delete_workspace_financial_records(workspace_id)
 
-        user.current_workspace_id = next_ws_map.get(user.id)
-        user.save(update_fields=['current_workspace'])
+            from budget_accounts.models import BudgetAccount
 
-        for affected_user in affected_users:
-            affected_user.current_workspace_id = next_ws_map.get(affected_user.id)
+            BudgetAccount.objects.filter(workspace_id=workspace_id).delete()
 
-        UserModel.objects.bulk_update(affected_users, ['current_workspace'])
+            workspace.delete()
+
+            user.current_workspace_id = next_ws_map.get(user.id)
+            user.save(update_fields=['current_workspace'])
+
+            for affected_user in affected_users:
+                affected_user.current_workspace_id = next_ws_map.get(affected_user.id)
+
+            UserModel.objects.bulk_update(affected_users, ['current_workspace'])
+
+        for au_email, au_name in email_recipients:
+            WorkspaceService._send_workspace_deleted_email(au_email, au_name, workspace_name, deleter_name)
 
     @staticmethod
     def _send_workspace_deleted_email(email, user_name, workspace_name, deleter_name):
@@ -221,7 +212,6 @@ class WorkspaceMemberService:
         return WorkspaceMember.objects.filter(workspace_id=workspace_id, user_id=user_id).first()
 
     @staticmethod
-    @db_transaction.atomic
     def add_member(user, workspace_id: int, data) -> dict:
         """
         Add a member to the workspace.
@@ -232,78 +222,74 @@ class WorkspaceMemberService:
 
         Raises domain exceptions on error.
         """
-        workspace = Workspace.objects.select_for_update().get(id=workspace_id)
+        with db_transaction.atomic():
+            workspace = Workspace.objects.select_for_update().get(id=workspace_id)
 
-        current_member_count = WorkspaceMember.objects.filter(workspace_id=workspace_id).count()
-        if current_member_count >= settings.WORKSPACE_MAX_MEMBERS:
-            raise WorkspaceMemberLimitReachedError()
+            current_member_count = WorkspaceMember.objects.filter(workspace_id=workspace_id).count()
+            if current_member_count >= settings.WORKSPACE_MAX_MEMBERS:
+                raise WorkspaceMemberLimitReachedError()
 
-        existing_user = User.objects.filter(email=data.email.lower()).first()
-
-        if existing_user:
-            existing_member = WorkspaceMember.objects.filter(
-                workspace_id=workspace_id,
-                user_id=existing_user.id,
-            ).first()
-
-            if existing_member:
-                raise WorkspaceMemberAlreadyExistsError()
-
-            new_member = WorkspaceMember.objects.create(
-                workspace_id=workspace_id,
-                user_id=existing_user.id,
-                role=data.role,
-            )
-
-            if existing_user.current_workspace_id is None:
-                existing_user.current_workspace_id = workspace_id
-                existing_user.save(update_fields=['current_workspace'])
+            existing_user = User.objects.filter(email=data.email.lower()).first()
 
             admin_name = user.full_name or user.email
-            db_transaction.on_commit(
-                lambda: WorkspaceMemberService._send_existing_user_email(
-                    existing_user, workspace, admin_name, data.role
+
+            if existing_user:
+                existing_member = WorkspaceMember.objects.filter(
+                    workspace_id=workspace_id,
+                    user_id=existing_user.id,
+                ).first()
+
+                if existing_member:
+                    raise WorkspaceMemberAlreadyExistsError()
+
+                new_member = WorkspaceMember.objects.create(
+                    workspace_id=workspace_id,
+                    user_id=existing_user.id,
+                    role=data.role,
                 )
-            )
 
-            return {
-                'message': f'Existing user {data.email} added to workspace',
-                'user_id': existing_user.id,
-                'member_id': new_member.id,
-                'is_new_user': False,
-            }
-        else:
-            if not data.password:
-                raise WorkspaceMemberPasswordRequiredError()
+                if existing_user.current_workspace_id is None:
+                    existing_user.current_workspace_id = workspace_id
+                    existing_user.save(update_fields=['current_workspace'])
 
-            new_user = User.objects.create_user(
-                email=data.email,
-                password=data.password,
-                full_name=data.full_name,
-                current_workspace_id=workspace_id,
-                is_active=True,
-            )
+                result = {
+                    'message': f'Existing user {data.email} added to workspace',
+                    'user_id': existing_user.id,
+                    'member_id': new_member.id,
+                    'is_new_user': False,
+                }
 
-            new_member = WorkspaceMember.objects.create(
-                workspace_id=workspace_id,
-                user_id=new_user.id,
-                role=data.role,
-            )
+                WorkspaceMemberService._send_existing_user_email(existing_user, workspace, admin_name, data.role)
 
-            admin_name = user.full_name or user.email
-            db_transaction.on_commit(
-                lambda: WorkspaceMemberService._send_new_user_email(new_user, workspace, admin_name, data.role)
-            )
+                return result
+            else:
+                if not data.password:
+                    raise WorkspaceMemberPasswordRequiredError()
 
-            return {
-                'message': f'User {data.email} created and added to workspace',
-                'user_id': new_user.id,
-                'member_id': new_member.id,
-                'is_new_user': True,
-            }
+                new_user = User.objects.create_user(
+                    email=data.email,
+                    password=data.password,
+                    full_name=data.full_name,
+                    current_workspace_id=workspace_id,
+                    is_active=True,
+                )
+
+                new_member = WorkspaceMember.objects.create(
+                    workspace_id=workspace_id,
+                    user_id=new_user.id,
+                    role=data.role,
+                )
+
+                WorkspaceMemberService._send_new_user_email(new_user, workspace, admin_name, data.role)
+
+                return {
+                    'message': f'User {data.email} created and added to workspace',
+                    'user_id': new_user.id,
+                    'member_id': new_member.id,
+                    'is_new_user': True,
+                }
 
     @staticmethod
-    @db_transaction.atomic
     def leave(user, workspace_id: int) -> dict:
         """
         Leave the workspace (remove yourself).
@@ -312,48 +298,45 @@ class WorkspaceMemberService:
         - Owner cannot leave (must transfer ownership first)
         - Auto-switches current_workspace if needed
         """
-        member = WorkspaceMember.objects.select_for_update().filter(workspace_id=workspace_id, user_id=user.id).first()
-        if not member:
-            raise WorkspaceMemberNotFoundError()
-
-        if member.role == Role.OWNER:
-            raise WorkspaceOwnerCannotLeaveError()
-
         workspace_name = Workspace.objects.get(id=workspace_id).name
         leaver_name = user.full_name or user.email
-        leaver_id = user.id
 
         admins = list(
             User.objects.filter(
                 workspace_memberships__workspace_id=workspace_id,
                 workspace_memberships__role__in=[Role.OWNER, Role.ADMIN],
-            ).exclude(id=leaver_id)
+            ).exclude(id=user.id)
         )
 
-        member.delete()
+        admin_recipients = [(admin.email, admin.full_name or admin.email) for admin in admins]
 
-        if user.current_workspace_id == workspace_id:
-            next_workspace = (
-                Workspace.objects.filter(members__user=user).exclude(id=workspace_id).order_by('-id').first()
+        with db_transaction.atomic():
+            member = (
+                WorkspaceMember.objects.select_for_update().filter(workspace_id=workspace_id, user_id=user.id).first()
             )
-            user.current_workspace = next_workspace
-            user.save(update_fields=['current_workspace'])
+            if not member:
+                raise WorkspaceMemberNotFoundError()
 
-        for admin in admins:
-            admin_email = admin.email
-            admin_name = admin.full_name or admin.email
-            db_transaction.on_commit(
-                lambda e=admin_email, n=admin_name: WorkspaceMemberService._send_member_left_email(
-                    e, n, leaver_name, workspace_name
+            if member.role == Role.OWNER:
+                raise WorkspaceOwnerCannotLeaveError()
+
+            member.delete()
+
+            if user.current_workspace_id == workspace_id:
+                next_workspace = (
+                    Workspace.objects.filter(members__user=user).exclude(id=workspace_id).order_by('-id').first()
                 )
-            )
+                user.current_workspace = next_workspace
+                user.save(update_fields=['current_workspace'])
+
+        for admin_email, admin_name in admin_recipients:
+            WorkspaceMemberService._send_member_left_email(admin_email, admin_name, leaver_name, workspace_name)
 
         return {'message': 'Successfully left workspace'}
 
     ASSIGNABLE_ROLES = (Role.ADMIN, Role.MEMBER, Role.VIEWER)
 
     @staticmethod
-    @db_transaction.atomic
     def update_role(user, workspace_id: int, member_user_id: int, new_role: str, current_role: str) -> dict:
         """
         Update a member's role in the workspace.
@@ -368,41 +351,41 @@ class WorkspaceMemberService:
                 f'Cannot assign role: {new_role}. Allowed: {", ".join(WorkspaceMemberService.ASSIGNABLE_ROLES)}'
             )
 
-        member = (
-            WorkspaceMember.objects.select_for_update()
-            .filter(
-                workspace_id=workspace_id,
-                user_id=member_user_id,
-            )
-            .first()
-        )
-
-        if not member:
-            raise WorkspaceMemberNotFoundError()
-
-        if member_user_id == user.id:
-            raise WorkspaceMemberCannotChangeOwnRoleError()
-
-        if member.role == Role.OWNER:
-            raise WorkspaceOwnerRoleChangeError()
-
-        if current_role == Role.ADMIN and member.role == Role.ADMIN:
-            raise WorkspaceMemberAdminInsufficientError('change role of')
-
-        old_role = member.role
-        member.role = new_role
-        member.save()
-
         workspace_name = Workspace.objects.get(id=workspace_id).name
         target_user = User.objects.get(id=member_user_id)
+
+        with db_transaction.atomic():
+            member = (
+                WorkspaceMember.objects.select_for_update()
+                .filter(
+                    workspace_id=workspace_id,
+                    user_id=member_user_id,
+                )
+                .first()
+            )
+
+            if not member:
+                raise WorkspaceMemberNotFoundError()
+
+            if member_user_id == user.id:
+                raise WorkspaceMemberCannotChangeOwnRoleError()
+
+            if member.role == Role.OWNER:
+                raise WorkspaceOwnerRoleChangeError()
+
+            if current_role == Role.ADMIN and member.role == Role.ADMIN:
+                raise WorkspaceMemberAdminInsufficientError('change role of')
+
+            old_role = member.role
+            member.role = new_role
+            member.save()
+
         target_email = target_user.email
         target_name = target_user.full_name or target_user.email
         admin_name = user.full_name or user.email
 
-        db_transaction.on_commit(
-            lambda: WorkspaceMemberService._send_role_changed_email(
-                target_email, target_name, workspace_name, old_role, new_role, admin_name
-            )
+        WorkspaceMemberService._send_role_changed_email(
+            target_email, target_name, workspace_name, old_role, new_role, admin_name
         )
 
         return {
@@ -413,7 +396,6 @@ class WorkspaceMemberService:
         }
 
     @staticmethod
-    @db_transaction.atomic
     def remove_member(user, workspace_id: int, member_user_id: int, current_role: str) -> None:
         """
         Remove a member from the workspace.
@@ -423,45 +405,42 @@ class WorkspaceMemberService:
         - Admin cannot remove other admins
         - Cannot remove yourself (use leave endpoint instead)
         """
-        member = (
-            WorkspaceMember.objects.select_for_update()
-            .filter(
-                workspace_id=workspace_id,
-                user_id=member_user_id,
-            )
-            .first()
-        )
-
-        if not member:
-            raise WorkspaceMemberNotFoundError()
-
-        if member_user_id == user.id:
-            raise WorkspaceMemberCannotRemoveSelfError()
-
-        if member.role == Role.OWNER:
-            raise WorkspaceOwnerRemoveError()
-
-        if current_role == Role.ADMIN and member.role == Role.ADMIN:
-            raise WorkspaceMemberAdminInsufficientError('remove')
-
         removed_user = User.objects.filter(id=member_user_id).first()
-        removed_user_email = removed_user.email if removed_user else None
-        removed_user_name = (removed_user.full_name or removed_user.email) if removed_user else ''
         workspace_name = Workspace.objects.get(id=workspace_id).name
         admin_name = user.full_name or user.email
 
-        member.delete()
-
-        if removed_user and removed_user.current_workspace_id == workspace_id:
-            next_workspace = Workspace.objects.filter(members__user=removed_user).order_by('-id').first()
-            removed_user.current_workspace = next_workspace
-            removed_user.save(update_fields=['current_workspace'])
-
-        if removed_user_email:
-            db_transaction.on_commit(
-                lambda: WorkspaceMemberService._send_member_removed_email(
-                    removed_user_email, removed_user_name, workspace_name, admin_name
+        with db_transaction.atomic():
+            member = (
+                WorkspaceMember.objects.select_for_update()
+                .filter(
+                    workspace_id=workspace_id,
+                    user_id=member_user_id,
                 )
+                .first()
+            )
+
+            if not member:
+                raise WorkspaceMemberNotFoundError()
+
+            if member_user_id == user.id:
+                raise WorkspaceMemberCannotRemoveSelfError()
+
+            if member.role == Role.OWNER:
+                raise WorkspaceOwnerRemoveError()
+
+            if current_role == Role.ADMIN and member.role == Role.ADMIN:
+                raise WorkspaceMemberAdminInsufficientError('remove')
+
+            member.delete()
+
+            if removed_user and removed_user.current_workspace_id == workspace_id:
+                next_workspace = Workspace.objects.filter(members__user=removed_user).order_by('-id').first()
+                removed_user.current_workspace = next_workspace
+                removed_user.save(update_fields=['current_workspace'])
+
+        if removed_user:
+            WorkspaceMemberService._send_member_removed_email(
+                removed_user.email, removed_user.full_name or removed_user.email, workspace_name, admin_name
             )
 
     @staticmethod
