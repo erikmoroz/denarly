@@ -4,7 +4,14 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from budget_accounts.models import BudgetAccount
+from budget_periods.factories import BudgetPeriodFactory
 from common.tests.mixins import APIClientMixin, AuthMixin
+from currency_exchanges.factories import CurrencyExchangeFactory
+from currency_exchanges.models import CurrencyExchange
+from planned_transactions.factories import PlannedTransactionFactory
+from planned_transactions.models import PlannedTransaction
+from transactions.factories import TransactionFactory
+from transactions.models import Transaction
 from workspaces.models import WorkspaceMember
 
 User = get_user_model()
@@ -471,14 +478,6 @@ class TestDeleteBudgetAccount(BudgetAccountTestCase):
 
     def test_delete_account_removes_financial_records(self):
         """Test deleting an account removes all related financial records."""
-        from budget_periods.factories import BudgetPeriodFactory
-        from currency_exchanges.factories import CurrencyExchangeFactory
-        from currency_exchanges.models import CurrencyExchange
-        from planned_transactions.factories import PlannedTransactionFactory
-        from planned_transactions.models import PlannedTransaction
-        from transactions.factories import TransactionFactory
-        from transactions.models import Transaction
-
         account = self.create_budget_account(name='With Records')
         period = BudgetPeriodFactory(
             budget_account=account,

@@ -14,6 +14,13 @@ from common.crypto import decrypt_secret, encrypt_secret
 from common.exceptions import AuthenticationError, NotFoundError, ValidationError
 from users.exceptions import TwoFactorNotEnabledError
 from users.models import User, UserTwoFactor
+from workspaces.exceptions import (
+    WorkspaceMemberAdminInsufficientError,
+    WorkspaceMemberCannotResetOwnPasswordError,
+    WorkspaceMemberNotFoundError,
+    WorkspaceOwnerPasswordResetError,
+)
+from workspaces.models import Role, WorkspaceMember
 
 
 def _generate_qr_code_svg(user: User, secret: str) -> str:
@@ -148,14 +155,6 @@ class TwoFactorService:
 
     @staticmethod
     def admin_reset(admin: User, workspace_id: int, target_user_id: int, current_role: str) -> dict:
-        from workspaces.exceptions import (
-            WorkspaceMemberAdminInsufficientError,
-            WorkspaceMemberCannotResetOwnPasswordError,
-            WorkspaceMemberNotFoundError,
-            WorkspaceOwnerPasswordResetError,
-        )
-        from workspaces.models import Role, WorkspaceMember
-
         target_member = WorkspaceMember.objects.filter(
             workspace_id=workspace_id,
             user_id=target_user_id,

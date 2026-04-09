@@ -10,6 +10,9 @@ from budget_accounts.models import BudgetAccount
 from budget_accounts.schemas import BudgetAccountArchive, BudgetAccountCreate, BudgetAccountUpdate
 from common.exceptions import CurrencyNotFoundInWorkspaceError
 from common.services.base import resolve_currency
+from currency_exchanges.models import CurrencyExchange
+from planned_transactions.models import PlannedTransaction
+from transactions.models import Transaction
 
 
 class BudgetAccountService:
@@ -91,10 +94,6 @@ class BudgetAccountService:
         (set budget_period=NULL) rather than cascade-delete them.
         We delete them explicitly to avoid orphaned records.
         """
-        from currency_exchanges.models import CurrencyExchange
-        from planned_transactions.models import PlannedTransaction
-        from transactions.models import Transaction
-
         account = BudgetAccountService.get(account_id, workspace_id)
         period_ids = list(account.budget_periods.values_list('id', flat=True))
         Transaction.objects.filter(budget_period_id__in=period_ids).delete()
