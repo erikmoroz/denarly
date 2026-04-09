@@ -82,7 +82,7 @@ class UserPreferences(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='preferences')
     calendar_start_day = models.IntegerField(
         choices=WeekdayChoices,
-        default=WeekdayChoices.SUNDAY,
+        default=WeekdayChoices.MONDAY,
         help_text='First day of the week for calendars (1=Monday, 7=Sunday)',
     )
     font_family = models.CharField(
