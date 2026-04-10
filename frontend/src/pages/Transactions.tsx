@@ -704,7 +704,7 @@ export default function Transactions() {
             onEdit={canManageBudgetData ? handleEdit : undefined}
             onDelete={canManageBudgetData ? handleDelete : undefined}
           />
-          <div className="mt-4">
+          {totalPages > 1 && (
             <Pagination
               page={page}
               total_pages={totalPages}
@@ -716,7 +716,7 @@ export default function Transactions() {
                 setPage(1)
               }}
             />
-          </div>
+          )}
         </>
       )}
 
