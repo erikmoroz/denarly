@@ -64,6 +64,7 @@ class PlannedTransactionService:
             raise PlannedTransactionCategoryNotFoundError()
 
     @staticmethod
+    @db_transaction.atomic
     def create(user, workspace_id: int, data: PlannedTransactionCreate) -> PlannedTransaction:
         """Create a planned transaction."""
         currency = resolve_currency(workspace_id, data.currency)
@@ -73,7 +74,7 @@ class PlannedTransactionService:
         period_id = PlannedTransactionService._resolve_period(workspace_id, data.planned_date, data.budget_period_id)
         PlannedTransactionService._validate_category(data.category_id, period_id)
 
-        return PlannedTransaction.objects.create(
+        planned = PlannedTransaction.objects.create(
             workspace_id=workspace_id,
             budget_period_id=period_id,
             name=data.name,
@@ -85,6 +86,11 @@ class PlannedTransactionService:
             created_by=user,
             updated_by=user,
         )
+
+        if data.status == 'done':
+            return PlannedTransactionService._execute_side_effects(user, workspace_id, planned, planned.planned_date)
+
+        return planned
 
     @staticmethod
     def update(user, workspace_id: int, planned_id: int, data: PlannedTransactionUpdate) -> PlannedTransaction:
@@ -117,14 +123,10 @@ class PlannedTransactionService:
         planned.delete()
 
     @staticmethod
-    @db_transaction.atomic
-    def execute(user, workspace_id: int, planned_id: int, payment_date: date) -> PlannedTransaction:
-        """Execute a planned transaction, creating an actual transaction."""
-        planned = PlannedTransactionService.get_planned(planned_id, workspace_id)
-
-        if planned.status == 'done':
-            raise PlannedTransactionAlreadyExecutedError()
-
+    def _execute_side_effects(
+        user, workspace_id: int, planned: PlannedTransaction, payment_date: date
+    ) -> PlannedTransaction:
+        """Create a Transaction and update PeriodBalance for an executed planned transaction."""
         period = (
             BudgetPeriod.objects.select_related('budget_account')
             .filter(
@@ -162,12 +164,23 @@ class PlannedTransactionService:
         balance.save(update_fields=['total_expenses', 'closing_balance'])
 
         planned.transaction_id = transaction_obj.id
-        planned.status = 'done'
         planned.payment_date = payment_date
+        planned.status = 'done'
         planned.updated_by = user
         planned.save()
 
         return planned
+
+    @staticmethod
+    @db_transaction.atomic
+    def execute(user, workspace_id: int, planned_id: int, payment_date: date) -> PlannedTransaction:
+        """Execute a planned transaction, creating an actual transaction."""
+        planned = PlannedTransactionService.get_planned(planned_id, workspace_id)
+
+        if planned.status == 'done':
+            raise PlannedTransactionAlreadyExecutedError()
+
+        return PlannedTransactionService._execute_side_effects(user, workspace_id, planned, payment_date)
 
     @staticmethod
     def export(workspace_id: int, period_id: int, status: str | None = None) -> list[dict]:
