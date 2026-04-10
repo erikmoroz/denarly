@@ -1,5 +1,7 @@
 """Business logic for the planned_transactions app."""
 
+from __future__ import annotations
+
 from datetime import date
 
 from django.db import transaction as db_transaction
@@ -63,6 +65,19 @@ class PlannedTransactionService:
         category = Category.objects.filter(id=category_id, budget_period_id=period_id).first()
         if not category:
             raise PlannedTransactionCategoryNotFoundError()
+
+    @staticmethod
+    def list(
+        workspace_id: int,
+        status: str | None = None,
+        budget_period_id: int | None = None,
+    ) -> list[PlannedTransaction]:
+        queryset = PlannedTransaction.objects.select_related('category').for_workspace(workspace_id)
+        if status:
+            queryset = queryset.filter(status=status)
+        if budget_period_id:
+            queryset = queryset.filter(budget_period_id=budget_period_id)
+        return list(queryset.order_by('planned_date'))
 
     @staticmethod
     @db_transaction.atomic

@@ -34,17 +34,7 @@ def list_planned(
 ):
     """List planned transactions for the current workspace."""
     workspace_id = request.auth.current_workspace_id
-
-    from planned_transactions.models import PlannedTransaction
-
-    queryset = PlannedTransaction.objects.select_related('category').for_workspace(workspace_id)
-
-    if status:
-        queryset = queryset.filter(status=status)
-    if budget_period_id:
-        queryset = queryset.filter(budget_period_id=budget_period_id)
-
-    return list(queryset.order_by('planned_date'))
+    return PlannedTransactionService.list(workspace_id, status, budget_period_id)
 
 
 @router.post('', response={201: PlannedTransactionOut, 400: dict}, auth=WorkspaceJWTAuth())
