@@ -19,7 +19,7 @@ export default function Planned() {
   const [selectedPlanned, setSelectedPlanned] = useState<PlannedTransaction | null>(null)
   const [executePlanned, setExecutePlanned] = useState<PlannedTransaction | null>(null)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  const [pageSize, setPageSize] = useState(25)
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { selectedPeriodId } = useBudgetPeriod()
@@ -255,7 +255,7 @@ export default function Planned() {
             onCancel={canManageBudgetData ? handleCancel : undefined}
             onDelete={canManageBudgetData ? handleDelete : undefined}
           />
-          {totalPages > 1 && (
+          {totalItems > 0 && (
             <Pagination
               page={page}
               total_pages={totalPages}

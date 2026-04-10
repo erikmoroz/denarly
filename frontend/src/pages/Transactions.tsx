@@ -40,7 +40,7 @@ export default function Transactions() {
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  const [pageSize, setPageSize] = useState(25)
   const queryClient = useQueryClient()
   const typeDropdownRef = useRef<HTMLDivElement>(null)
   const categoryDropdownRef = useRef<HTMLDivElement>(null)
@@ -704,7 +704,7 @@ export default function Transactions() {
             onEdit={canManageBudgetData ? handleEdit : undefined}
             onDelete={canManageBudgetData ? handleDelete : undefined}
           />
-          {totalPages > 1 && (
+          {totalItems > 0 && (
             <Pagination
               page={page}
               total_pages={totalPages}

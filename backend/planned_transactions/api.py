@@ -33,7 +33,7 @@ def list_planned(
     status: str | None = Query(None),
     budget_period_id: int | None = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50),
+    page_size: int = Query(25),
 ):
     """List planned transactions for the current workspace."""
     workspace_id = request.auth.current_workspace_id

@@ -20,7 +20,7 @@ export default function CurrencyExchangesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedExchange, setSelectedExchange] = useState<CurrencyExchange | null>(null)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  const [pageSize, setPageSize] = useState(25)
   const [preselectedFrom, setPreselectedFrom] = useState<string | undefined>(undefined)
   const [preselectedTo, setPreselectedTo] = useState<string | undefined>(undefined)
   const [isManageModalOpen, setIsManageModalOpen] = useState(false)
@@ -330,7 +330,7 @@ export default function CurrencyExchangesPage() {
           <p className="text-center py-8 text-on-surface-variant">No currency exchanges yet</p>
         )}
 
-        {totalPages > 1 && (
+        {totalItems > 0 && (
           <Pagination
             page={page}
             total_pages={totalPages}

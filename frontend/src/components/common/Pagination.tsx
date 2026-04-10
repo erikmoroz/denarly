@@ -7,7 +7,7 @@ interface Props {
   onPageSizeChange: (size: number) => void
 }
 
-const PAGE_SIZE_OPTIONS = [25, 50, 100, 200]
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200]
 
 function getPageNumbers(current: number, total: number): (number | 'ellipsis')[] {
   if (total <= 7) {

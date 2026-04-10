@@ -932,14 +932,14 @@ class TestPlannedTransactionPagination(PlannedTransactionTestCase):
             )
 
     def test_default_pagination(self):
-        """Default page_size=50, page=1."""
-        self._create_planned_transactions(60)
+        """Default page_size=25, page=1."""
+        self._create_planned_transactions(35)
         data = self.get('/api/planned-transactions', **self.auth_headers())
         self.assertStatus(200)
-        self.assertEqual(len(data['items']), 50)
-        self.assertEqual(data['total'], 63)  # 60 new + 3 from setUp
+        self.assertEqual(len(data['items']), 25)
+        self.assertEqual(data['total'], 38)  # 35 new + 3 from setUp
         self.assertEqual(data['page'], 1)
-        self.assertEqual(data['page_size'], 50)
+        self.assertEqual(data['page_size'], 25)
         self.assertEqual(data['total_pages'], 2)
 
     def test_custom_page_size(self):
@@ -966,11 +966,11 @@ class TestPlannedTransactionPagination(PlannedTransactionTestCase):
         self.assertEqual(len(data['items']), 0)
         self.assertEqual(data['total'], 3)  # 3 from setUp
 
-    def test_invalid_page_size_defaults_to_50(self):
-        """Invalid page_size value falls back to default 50."""
+    def test_invalid_page_size_defaults(self):
+        """Invalid page_size value falls back to default 25."""
         data = self.get('/api/planned-transactions?page_size=999', **self.auth_headers())
         self.assertStatus(200)
-        self.assertEqual(data['page_size'], 50)
+        self.assertEqual(data['page_size'], 25)
         self.assertEqual(len(data['items']), 3)  # 3 from setUp, fits in page 1
 
     def test_zero_total_when_no_records(self):

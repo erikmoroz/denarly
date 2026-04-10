@@ -6,8 +6,8 @@ from pydantic import BaseModel
 
 T = TypeVar('T')
 
-ALLOWED_PAGE_SIZES = [25, 50, 100, 200]
-DEFAULT_PAGE_SIZE = 50
+ALLOWED_PAGE_SIZES = [10, 25, 50, 100, 200]
+DEFAULT_PAGE_SIZE = 25
 
 
 class PaginatedOut(BaseModel, Generic[T]):

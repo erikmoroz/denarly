@@ -791,14 +791,14 @@ class TestCategoryPagination(AuthMixin, APIClientMixin, TestCase):
             )
 
     def test_default_pagination(self):
-        """Default page_size=50, page=1."""
-        self._create_categories(60)
+        """Default page_size=25, page=1."""
+        self._create_categories(35)
         data = self.get(f'/api/categories?budget_period_id={self.period.id}', **self.auth_headers())
         self.assertStatus(200)
-        self.assertEqual(len(data['items']), 50)
-        self.assertEqual(data['total'], 60)
+        self.assertEqual(len(data['items']), 25)
+        self.assertEqual(data['total'], 35)
         self.assertEqual(data['page'], 1)
-        self.assertEqual(data['page_size'], 50)
+        self.assertEqual(data['page_size'], 25)
         self.assertEqual(data['total_pages'], 2)
 
     def test_custom_page_size(self):
@@ -831,16 +831,16 @@ class TestCategoryPagination(AuthMixin, APIClientMixin, TestCase):
         self.assertEqual(len(data['items']), 0)
         self.assertEqual(data['total'], 0)
 
-    def test_invalid_page_size_defaults_to_50(self):
-        """Invalid page_size value falls back to default 50."""
-        self._create_categories(55)
+    def test_invalid_page_size_defaults(self):
+        """Invalid page_size value falls back to default 25."""
+        self._create_categories(30)
         data = self.get(
             f'/api/categories?budget_period_id={self.period.id}&page_size=999',
             **self.auth_headers(),
         )
         self.assertStatus(200)
-        self.assertEqual(data['page_size'], 50)
-        self.assertEqual(len(data['items']), 50)
+        self.assertEqual(data['page_size'], 25)
+        self.assertEqual(len(data['items']), 25)
 
     def test_zero_total_when_no_records(self):
         """Empty result returns total=0, total_pages=0."""

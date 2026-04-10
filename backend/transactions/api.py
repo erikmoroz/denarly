@@ -33,7 +33,7 @@ def list_transactions(
     amount_lte: Decimal | None = Query(None),
     ordering: str | None = Query(None, pattern=r'^(date|-date)$'),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50),
+    page_size: int = Query(25),
 ):
     """List transactions for the current workspace with optional filters."""
     workspace_id = request.auth.current_workspace_id

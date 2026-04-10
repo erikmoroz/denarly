@@ -25,7 +25,7 @@ def list_categories(
     budget_period_id: int | None = Query(None),
     current_date: date | None = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50),
+    page_size: int = Query(25),
 ):
     """List categories for the current workspace."""
     workspace_id = request.auth.current_workspace_id

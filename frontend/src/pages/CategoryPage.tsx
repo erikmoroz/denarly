@@ -21,7 +21,7 @@ export default function CategoryPage() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(25);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { selectedPeriodId } = useBudgetPeriod();
@@ -249,7 +249,7 @@ export default function CategoryPage() {
                 ))}
               </div>
 
-              {totalPages > 1 && (
+              {totalItems > 0 && (
                 <Pagination
                   page={page}
                   total_pages={totalPages}

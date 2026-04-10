@@ -27,7 +27,7 @@ def list_exchanges(
     request: HttpRequest,
     budget_period_id: int | None = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50),
+    page_size: int = Query(25),
 ):
     """List currency exchanges for the current workspace."""
     workspace_id = request.auth.current_workspace_id
