@@ -207,7 +207,7 @@ export const exchangeShortcutsApi = {
 };
 
 export const plannedTransactionsApi = {
-  getAll: (params?: { status?: string; budget_period_id?: number; page?: number; page_size?: number }) => api.get('/planned-transactions', { params }),
+  getAll: (params?: { status?: string; budget_period_id?: number; currency?: string[]; page?: number; page_size?: number }) => api.get('/planned-transactions', { params }),
   create: (data: { budget_period_id?: number; name: string; amount: number; currency: string; category_id?: number | null; planned_date: string; status?: 'pending' | 'done' | 'cancelled' }) => api.post('/planned-transactions', data),
   update: (id: number, data: { budget_period_id?: number; name: string; amount: number; currency: string; category_id?: number | null; planned_date: string; status?: 'pending' | 'done' | 'cancelled' }) => api.put(`/planned-transactions/${id}`, data),
   delete: (id: number) => api.delete(`/planned-transactions/${id}`),
