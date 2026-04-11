@@ -159,7 +159,7 @@ export const budgetsApi = {
 };
 
 export const transactionsApi = {
-  getAll: (params?: { budget_period_id?: number; current_date?: string; search?: string; start_date?: string; end_date?: string; type?: string[]; category_id?: number[]; amount_gte?: number; amount_lte?: number; ordering?: 'date' | '-date'; page?: number; page_size?: number }) => api.get('/transactions', { params }),
+  getAll: (params?: { budget_period_id?: number; current_date?: string; search?: string; start_date?: string; end_date?: string; type?: string[]; category_id?: number[]; currency?: string[]; amount_gte?: number; amount_lte?: number; ordering?: 'date' | '-date'; page?: number; page_size?: number }) => api.get('/transactions', { params }),
   create: (data: { date: string; description: string; category_id: number; amount: number; currency: string; type: 'expense' | 'income' }) => api.post('/transactions', data),
   update: (id: number, data: { date: string; description: string; category_id: number; amount: number; currency: string; type: 'expense' | 'income' }) => api.put(`/transactions/${id}`, data),
   delete: (id: number) => api.delete(`/transactions/${id}`),
@@ -179,6 +179,10 @@ export const periodBalancesApi = {
   update: (id: number, data: { opening_balance: number }) => api.put(`/period-balances/${id}`, data),
   recalculate: (periodId: number, currency: string) =>
     api.post('/period-balances/recalculate', { budget_period_id: periodId, currency }),
+};
+
+export const currenciesApi = {
+  getAll: () => api.get('/workspaces/currencies').then(res => res.data),
 };
 
 export const currencyExchangesApi = {
