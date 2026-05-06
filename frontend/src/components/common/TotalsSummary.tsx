@@ -67,7 +67,7 @@ function TransactionTable({
       </thead>
       <tbody>
         {['income', 'expense'].map((type) => (
-          <tr key={type} className={type === 'income' ? 'text-positive' : 'text-negative'}>
+          <tr key={type} className={`hover:bg-surface-hover transition-colors ${type === 'income' ? 'text-positive' : 'text-negative'}`}>
             <td className="py-2 pr-4 font-sans capitalize">{type}</td>
             {currencies.map((c) => {
               const val = typeMap.get(`${type}|${c}`)
@@ -111,7 +111,7 @@ function CategoryRows({ categoryTotals, currencies }: { categoryTotals: Transact
   return (
     <>
       {categoryNames.map((name) => (
-        <tr key={name} className="text-text">
+        <tr key={name} className="hover:bg-surface-hover transition-colors text-text">
           <td className="py-2 pr-4 font-sans">{name}</td>
           {currencies.map((c) => {
             const val = catMap.get(`${name}|${c}`)
@@ -162,7 +162,7 @@ function ExchangeTable({ totals }: { totals: CurrencyExchangeTotalItem[] }) {
       </thead>
       <tbody>
         {totals.map((item) => (
-          <tr key={`${item.from_currency}-${item.to_currency}`} className="text-text">
+          <tr key={`${item.from_currency}-${item.to_currency}`} className="hover:bg-surface-hover transition-colors text-text">
             <td className="py-2 px-3 text-right font-mono">
               {formatAmount(item.from_total)} {item.from_currency}
             </td>
@@ -186,7 +186,7 @@ export default function TotalsSummary(props: Props) {
     if (props.typeTotals.length === 0) return null
     const currencies = extractCurrencies([...props.typeTotals, ...(props.categoryTotals ?? [])])
     return (
-      <div className="bg-surface border border-border rounded-sm px-4 py-3 mt-2">
+      <div className="bg-surface border border-border rounded-sm px-4 py-3 mt-2 w-fit">
         <TransactionTable typeTotals={props.typeTotals} categoryTotals={props.categoryTotals} currencies={currencies} />
       </div>
     )
@@ -195,7 +195,7 @@ export default function TotalsSummary(props: Props) {
   if (props.mode === 'planned') {
     if (props.categoryTotals.length === 0) return null
     return (
-      <div className="bg-surface border border-border rounded-sm px-4 py-3 mt-2">
+      <div className="bg-surface border border-border rounded-sm px-4 py-3 mt-2 w-fit">
         <PlannedTable categoryTotals={props.categoryTotals} />
       </div>
     )
@@ -204,7 +204,7 @@ export default function TotalsSummary(props: Props) {
   if (props.mode === 'exchanges') {
     if (props.totals.length === 0) return null
     return (
-      <div className="bg-surface border border-border rounded-sm px-4 py-3 mt-2">
+      <div className="bg-surface border border-border rounded-sm px-4 py-3 mt-2 w-fit">
         <ExchangeTable totals={props.totals} />
       </div>
     )
