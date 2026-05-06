@@ -231,7 +231,7 @@ export interface PaginatedResponse<T> {
 
 // ============= Totals Types =============
 export interface TransactionTotalItem {
-  type: 'income' | 'expense';
+  group: string; // "income"/"expense" or category name
   currency: string;
   total: string;
 }
@@ -241,6 +241,7 @@ export interface TransactionTotalsResponse {
 }
 
 export interface PlannedTransactionTotalItem {
+  group: string; // category name
   currency: string;
   total: string;
 }
