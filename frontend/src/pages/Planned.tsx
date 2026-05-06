@@ -79,13 +79,14 @@ export default function Planned() {
   const totalPages = apiResponse?.total_pages || 0
 
   const { data: totalsData } = useQuery({
-    queryKey: ['planned-transactions-totals', statusFilter, selectedPeriodId, selectedCurrencies],
+    queryKey: ['planned-transactions-totals-category', statusFilter, selectedPeriodId, selectedCurrencies],
     queryFn: async () => {
       if (!selectedPeriodId) return null
       return plannedTransactionsApi.getTotals({
         status: statusFilter || undefined,
         budget_period_id: selectedPeriodId,
         currency: selectedCurrencies.length > 0 ? selectedCurrencies : undefined,
+        group_by: 'category',
       })
     },
     enabled: !!selectedPeriodId && totalItems > 0,
@@ -95,7 +96,7 @@ export default function Planned() {
     mutationFn: (id: number) => plannedTransactionsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['planned-transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['planned-transactions-totals'] })
+      queryClient.invalidateQueries({ queryKey: ['planned-transactions-totals-category'] })
       toast.success('Planned transaction deleted successfully!')
     },
     onError: () => {
@@ -116,7 +117,7 @@ export default function Planned() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['planned-transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['planned-transactions-totals'] })
+      queryClient.invalidateQueries({ queryKey: ['planned-transactions-totals-category'] })
       toast.success('Planned transaction cancelled successfully!')
     },
     onError: () => {
@@ -129,7 +130,7 @@ export default function Planned() {
     onSuccess: () => {
       toast.success('Planned transactions imported successfully!');
       queryClient.invalidateQueries({ queryKey: ['planned-transactions'] });
-      queryClient.invalidateQueries({ queryKey: ['planned-transactions-totals'] });
+      queryClient.invalidateQueries({ queryKey: ['planned-transactions-totals-category'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Failed to import planned transactions.');
@@ -348,7 +349,7 @@ export default function Planned() {
             onDelete={canManageBudgetData ? handleDelete : undefined}
           />
           {totalItems > 0 && totalsData?.totals && totalsData.totals.length > 0 && (
-            <TotalsSummary mode="planned" totals={totalsData.totals} />
+            <TotalsSummary mode="planned" categoryTotals={totalsData.totals} />
           )}
           {totalItems > 0 && (
             <Pagination
