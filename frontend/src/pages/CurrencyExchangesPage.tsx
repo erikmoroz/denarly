@@ -337,10 +337,6 @@ export default function CurrencyExchangesPage() {
           ))}
         </div>
 
-        {totalItems > 0 && totalsData?.totals && totalsData.totals.length > 0 && (
-          <TotalsSummary mode="exchanges" totals={totalsData.totals} />
-        )}
-
         {totalItems === 0 && (
           <p className="text-center py-8 text-text-muted">No currency exchanges yet</p>
         )}
@@ -359,6 +355,10 @@ export default function CurrencyExchangesPage() {
           />
         )}
       </div>
+
+      {totalItems > 0 && totalsData?.totals && totalsData.totals.length > 0 && (
+        <TotalsSummary mode="exchanges" totals={totalsData.totals} />
+      )}
 
       <CurrencyExchangeFormModal
         isOpen={isModalOpen}
