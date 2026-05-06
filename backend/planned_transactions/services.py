@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import date
 
 from django.db import transaction as db_transaction
-from django.db.models import Sum
+from django.db.models import F, Sum, Value
+from django.db.models.functions import Coalesce
 
 from budget_periods.models import BudgetPeriod
 from budget_periods.services import BudgetPeriodService
@@ -112,11 +113,31 @@ class PlannedTransactionService:
         status: str | None = None,
         budget_period_id: int | None = None,
         currency: list | None = None,
+        group_by: str = 'currency',
     ) -> list[dict]:
-        """Return aggregated totals grouped by currency."""
+        """Return aggregated totals grouped by currency or category."""
         queryset = PlannedTransactionService._build_filtered_queryset(workspace_id, status, budget_period_id, currency)
-        rows = queryset.values('currency__symbol').annotate(total=Sum('amount')).order_by('currency__symbol')
-        return [{'currency': row['currency__symbol'], 'total': row['total']} for row in rows]
+
+        if group_by == 'category':
+            rows = (
+                queryset.annotate(
+                    currency_symbol=F('currency__symbol'),
+                    category_name=Coalesce('category__name', Value('Uncategorized')),
+                )
+                .values('category_name', 'currency_symbol')
+                .annotate(total=Sum('amount'))
+                .order_by('category_name', 'currency_symbol')
+            )
+            return [{'group': r['category_name'], 'currency': r['currency_symbol'], 'total': r['total']} for r in rows]
+
+        # Default: group by currency
+        rows = (
+            queryset.annotate(currency_symbol=F('currency__symbol'))
+            .values('currency_symbol')
+            .annotate(total=Sum('amount'))
+            .order_by('currency_symbol')
+        )
+        return [{'group': r['currency_symbol'], 'currency': r['currency_symbol'], 'total': r['total']} for r in rows]
 
     @staticmethod
     @db_transaction.atomic
