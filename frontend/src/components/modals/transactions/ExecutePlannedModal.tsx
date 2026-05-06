@@ -20,7 +20,10 @@ export default function ExecutePlannedModal({ isOpen, onClose, plannedId, planne
     mutationFn: () => plannedTransactionsApi.execute(plannedId, paymentDate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['planned-transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['planned-transactions-totals-category'] })
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions-totals-type'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions-totals-category'] })
       queryClient.invalidateQueries({ queryKey: ['budget-summary'] })
       queryClient.refetchQueries({ queryKey: ['period-balances'] })
       toast.success('Planned transaction executed successfully!')
