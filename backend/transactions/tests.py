@@ -924,7 +924,7 @@ class TestTransactionTotals(TransactionsTestCase):
         self.assertEqual(len(totals), 4)
 
         # Verify each group
-        totals_map = {(t['type'], t['currency']): t['total'] for t in totals}
+        totals_map = {(t['group'], t['currency']): t['total'] for t in totals}
         self.assertEqual(totals_map[('expense', 'PLN')], '250.00')
         self.assertEqual(totals_map[('income', 'PLN')], '5000.00')
         self.assertEqual(totals_map[('expense', 'USD')], '800.00')
@@ -960,7 +960,7 @@ class TestTransactionTotals(TransactionsTestCase):
         self.assertStatus(200)
         totals = data['totals']
         self.assertEqual(len(totals), 1)
-        self.assertEqual(totals[0]['type'], 'income')
+        self.assertEqual(totals[0]['group'], 'income')
         self.assertEqual(totals[0]['total'], '5000.00')
 
     def test_totals_currency_filter(self):
@@ -1129,3 +1129,146 @@ class TestTransactionTotals(TransactionsTestCase):
         """Test that getting totals without authentication fails."""
         self.get(f'/api/transactions/totals?budget_period_id={self.period.id}')
         self.assertStatus(401)
+
+    def test_totals_group_by_category(self):
+        """Test totals grouped by category."""
+        Transaction.objects.create(
+            budget_period=self.period,
+            date=date(2025, 1, 15),
+            description='Groceries',
+            category=self.category1,
+            amount=Decimal('250.00'),
+            currency=self.pln_currency,
+            type='expense',
+            created_by=self.user,
+            workspace=self.workspace,
+        )
+        Transaction.objects.create(
+            budget_period=self.period,
+            date=date(2025, 1, 16),
+            description='Bus',
+            category=self.category2,
+            amount=Decimal('50.00'),
+            currency=self.pln_currency,
+            type='expense',
+            created_by=self.user,
+            workspace=self.workspace,
+        )
+        Transaction.objects.create(
+            budget_period=self.period,
+            date=date(2025, 1, 17),
+            description='More groceries',
+            category=self.category1,
+            amount=Decimal('100.00'),
+            currency=self.usd_currency,
+            type='expense',
+            created_by=self.user,
+            workspace=self.workspace,
+        )
+
+        data = self.get(
+            f'/api/transactions/totals?budget_period_id={self.period.id}&group_by=category',
+            **self.auth_headers(),
+        )
+        self.assertStatus(200)
+        totals = data['totals']
+        self.assertEqual(len(totals), 3)
+
+        totals_map = {(t['group'], t['currency']): t['total'] for t in totals}
+        self.assertEqual(totals_map[('Groceries', 'PLN')], '250.00')
+        self.assertEqual(totals_map[('Groceries', 'USD')], '100.00')
+        self.assertEqual(totals_map[('Transport', 'PLN')], '50.00')
+
+    def test_totals_group_by_category_uncategorized(self):
+        """Test totals grouped by category with uncategorized transactions."""
+        Transaction.objects.create(
+            budget_period=self.period,
+            date=date(2025, 1, 15),
+            description='Uncategorized expense',
+            category=None,
+            amount=Decimal('100.00'),
+            currency=self.pln_currency,
+            type='expense',
+            created_by=self.user,
+            workspace=self.workspace,
+        )
+        Transaction.objects.create(
+            budget_period=self.period,
+            date=date(2025, 1, 16),
+            description='Categorized expense',
+            category=self.category1,
+            amount=Decimal('250.00'),
+            currency=self.pln_currency,
+            type='expense',
+            created_by=self.user,
+            workspace=self.workspace,
+        )
+
+        data = self.get(
+            f'/api/transactions/totals?budget_period_id={self.period.id}&group_by=category',
+            **self.auth_headers(),
+        )
+        self.assertStatus(200)
+        totals = data['totals']
+        self.assertEqual(len(totals), 2)
+
+        totals_map = {(t['group'], t['currency']): t['total'] for t in totals}
+        self.assertEqual(totals_map[('Groceries', 'PLN')], '250.00')
+        self.assertEqual(totals_map[('Uncategorized', 'PLN')], '100.00')
+
+    def test_totals_group_by_category_cross_workspace(self):
+        """Test category totals only returns transactions from the user's workspace."""
+        Transaction.objects.create(
+            budget_period=self.period,
+            date=date(2025, 1, 15),
+            description='My expense',
+            category=self.category1,
+            amount=Decimal('250.00'),
+            currency=self.pln_currency,
+            type='expense',
+            created_by=self.user,
+            workspace=self.workspace,
+        )
+
+        # Create transaction in other workspace
+        other_workspace = Workspace.objects.create(name='Other Workspace')
+        other_user = User.objects.create_user(
+            email='other2@example.com',
+            password='otherpass123',
+            current_workspace=other_workspace,
+        )
+        other_workspace.owner = other_user
+        other_workspace.save()
+        WorkspaceMember.objects.create(workspace=other_workspace, user=other_user, role='owner')
+        other_currency = Currency.objects.create(workspace=other_workspace, name='Polish Zloty', symbol='PLN')
+        other_account = BudgetAccount.objects.create(
+            workspace=other_workspace, name='Other Account', default_currency=other_currency, created_by=other_user
+        )
+        other_period = BudgetPeriod.objects.create(
+            budget_account=other_account,
+            name='Other Period',
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 1, 31),
+            created_by=other_user,
+            workspace=other_workspace,
+        )
+        Transaction.objects.create(
+            budget_period=other_period,
+            date=date(2025, 1, 15),
+            description='Other expense',
+            amount=Decimal('9999.00'),
+            currency=other_currency,
+            type='expense',
+            created_by=other_user,
+            workspace=other_workspace,
+        )
+
+        data = self.get(
+            f'/api/transactions/totals?budget_period_id={self.period.id}&group_by=category',
+            **self.auth_headers(),
+        )
+        self.assertStatus(200)
+        totals = data['totals']
+        self.assertEqual(len(totals), 1)
+        self.assertEqual(totals[0]['group'], 'Groceries')
+        self.assertEqual(totals[0]['total'], '250.00')

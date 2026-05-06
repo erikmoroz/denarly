@@ -5,7 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db import transaction as db_transaction
-from django.db.models import F, Sum
+from django.db.models import F, Sum, Value
+from django.db.models.functions import Coalesce
 
 from budget_periods.models import BudgetPeriod
 from budget_periods.services import BudgetPeriodService
@@ -202,8 +203,9 @@ class TransactionService:
         end_date=None,
         amount_gte: Decimal | None = None,
         amount_lte: Decimal | None = None,
+        group_by: str = 'type',
     ) -> list[dict]:
-        """Get aggregated transaction totals grouped by (type, currency)."""
+        """Get aggregated transaction totals grouped by (type, currency) or (category, currency)."""
         queryset = TransactionService._build_filtered_queryset(
             workspace_id=workspace_id,
             budget_period_id=budget_period_id,
@@ -221,13 +223,26 @@ class TransactionService:
         if queryset is None:
             return []
 
+        if group_by == 'category':
+            rows = (
+                queryset.annotate(
+                    currency_symbol=F('currency__symbol'),
+                    category_name=Coalesce('category__name', Value('Uncategorized')),
+                )
+                .values('category_name', 'currency_symbol')
+                .annotate(total=Sum('amount'))
+                .order_by('category_name', 'currency_symbol')
+            )
+            return [{'group': r['category_name'], 'currency': r['currency_symbol'], 'total': r['total']} for r in rows]
+
+        # Default: group by type
         rows = (
             queryset.annotate(currency_symbol=F('currency__symbol'))
             .values('type', 'currency_symbol')
             .annotate(total=Sum('amount'))
             .order_by('type', 'currency_symbol')
         )
-        return [{'type': r['type'], 'currency': r['currency_symbol'], 'total': r['total']} for r in rows]
+        return [{'group': r['type'], 'currency': r['currency_symbol'], 'total': r['total']} for r in rows]
 
     @staticmethod
     @db_transaction.atomic

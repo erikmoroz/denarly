@@ -69,8 +69,9 @@ def get_transaction_totals(
     end_date: date | None = Query(None),
     amount_gte: Decimal | None = Query(None),
     amount_lte: Decimal | None = Query(None),
+    group_by: str = Query('type', pattern=r'^(type|category)$'),
 ):
-    """Get aggregated transaction totals grouped by (type, currency)."""
+    """Get aggregated transaction totals grouped by type or category."""
     workspace_id = request.auth.current_workspace_id
     totals = TransactionService.totals(
         workspace_id=workspace_id,
@@ -84,6 +85,7 @@ def get_transaction_totals(
         end_date=end_date,
         amount_gte=amount_gte,
         amount_lte=amount_lte,
+        group_by=group_by,
     )
     return {'totals': totals}
 

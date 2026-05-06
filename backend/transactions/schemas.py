@@ -120,7 +120,7 @@ class TransactionOut(BaseModel):
 class TransactionTotalsItem(BaseModel):
     """Schema for a single totals group."""
 
-    type: str
+    group: str  # "income"/"expense" (when group_by=type) or category name (when group_by=category)
     currency: str
     total: Decimal
 
