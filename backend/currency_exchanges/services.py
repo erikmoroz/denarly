@@ -91,8 +91,6 @@ class CurrencyExchangeService:
     @staticmethod
     def totals(workspace_id: int, budget_period_id: int | None = None) -> list[dict]:
         """Return aggregated totals grouped by (from_currency, to_currency) pair."""
-        from currency_exchanges.schemas import CurrencyExchangeTotalsItem
-
         queryset = CurrencyExchangeService._build_filtered_queryset(workspace_id, budget_period_id)
         rows = (
             queryset.values('from_currency__symbol', 'to_currency__symbol')
@@ -100,12 +98,12 @@ class CurrencyExchangeService:
             .order_by('from_currency__symbol', 'to_currency__symbol')
         )
         return [
-            CurrencyExchangeTotalsItem(
-                from_currency=row['from_currency__symbol'],
-                to_currency=row['to_currency__symbol'],
-                from_total=row['from_total'],
-                to_total=row['to_total'],
-            )
+            {
+                'from_currency': row['from_currency__symbol'],
+                'to_currency': row['to_currency__symbol'],
+                'from_total': row['from_total'],
+                'to_total': row['to_total'],
+            }
             for row in rows
         ]
 
