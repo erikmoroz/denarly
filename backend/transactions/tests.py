@@ -1063,6 +1063,38 @@ class TestTransactionTotals(TransactionsTestCase):
         self.assertEqual(len(totals), 1)
         self.assertEqual(totals[0]['total'], '250.00')
 
+    def test_totals_amount_filters(self):
+        """Test totals filtered by amount range."""
+        Transaction.objects.create(
+            budget_period=self.period,
+            date=date(2025, 1, 15),
+            description='Small expense',
+            amount=Decimal('50.00'),
+            currency=self.pln_currency,
+            type='expense',
+            created_by=self.user,
+            workspace=self.workspace,
+        )
+        Transaction.objects.create(
+            budget_period=self.period,
+            date=date(2025, 1, 16),
+            description='Large expense',
+            amount=Decimal('500.00'),
+            currency=self.pln_currency,
+            type='expense',
+            created_by=self.user,
+            workspace=self.workspace,
+        )
+
+        data = self.get(
+            f'/api/transactions/totals?budget_period_id={self.period.id}&amount_gte=100',
+            **self.auth_headers(),
+        )
+        self.assertStatus(200)
+        totals = data['totals']
+        self.assertEqual(len(totals), 1)
+        self.assertEqual(totals[0]['total'], '500.00')
+
     def test_totals_no_results(self):
         """Test totals returns empty when no transactions match."""
         data = self.get(f'/api/transactions/totals?budget_period_id={self.period.id}', **self.auth_headers())
