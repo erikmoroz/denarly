@@ -72,12 +72,12 @@ export default function CurrencyExchangeFormModal({ isOpen, onClose, exchange, p
         transactionsApi.create({
           date: createdExchange.date,
           description: exchangeDesc,
-          category_id: null as any,
+          category_id: null,
           amount: createdExchange.from_amount,
           currency: createdExchange.from_currency,
           type: 'expense',
           budget_period_id: selectedPeriodId,
-        }).catch(() => {
+        } as any).catch(() => {
           toast.error('Failed to create linked expense transaction')
         })
 
@@ -85,12 +85,12 @@ export default function CurrencyExchangeFormModal({ isOpen, onClose, exchange, p
         transactionsApi.create({
           date: createdExchange.date,
           description: exchangeDesc,
-          category_id: null as any,
+          category_id: null,
           amount: createdExchange.to_amount,
           currency: createdExchange.to_currency,
           type: 'income',
           budget_period_id: selectedPeriodId,
-        }).catch(() => {
+        } as any).catch(() => {
           toast.error('Failed to create linked income transaction')
         })
 
