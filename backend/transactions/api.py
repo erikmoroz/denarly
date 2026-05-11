@@ -24,7 +24,7 @@ def list_transactions(
     request: HttpRequest,
     budget_period_id: int | None = Query(None),
     current_date: date | None = Query(None),
-    type: list[str] | None = Query(None),
+    transaction_type: list[str] | None = Query(None),
     category_id: list[int] | None = Query(None),
     currency: list[str] | None = Query(None),
     search: str | None = Query(None),
@@ -42,7 +42,7 @@ def list_transactions(
         workspace_id=workspace_id,
         budget_period_id=budget_period_id,
         current_date=current_date,
-        type=type,
+        transaction_type=transaction_type,
         category_id=category_id,
         currency=currency,
         search=search,
@@ -61,7 +61,7 @@ def get_transaction_totals(
     request: HttpRequest,
     budget_period_id: int | None = Query(None),
     current_date: date | None = Query(None),
-    type: list[str] | None = Query(None),
+    transaction_type: list[str] | None = Query(None),
     category_id: list[int] | None = Query(None),
     currency: list[str] | None = Query(None),
     search: str | None = Query(None),
@@ -77,7 +77,7 @@ def get_transaction_totals(
         workspace_id=workspace_id,
         budget_period_id=budget_period_id,
         current_date=current_date,
-        type=type,
+        transaction_type=transaction_type,
         category_id=category_id,
         currency=currency,
         search=search,
@@ -94,11 +94,11 @@ def get_transaction_totals(
 def export_transactions(
     request: HttpRequest,
     budget_period_id: int = Query(...),
-    type: str | None = Query(None, pattern=r'^(expense|income)$'),
+    transaction_type: str | None = Query(None, pattern=r'^(expense|income)$'),
 ):
     """Export transactions from a budget period as JSON."""
     workspace_id = request.auth.current_workspace_id
-    export_data = TransactionService.export(workspace_id, budget_period_id, type)
+    export_data = TransactionService.export(workspace_id, budget_period_id, transaction_type)
     response = HttpResponse(json.dumps(export_data, indent=2), content_type='application/json')
     response['Content-Disposition'] = f'attachment; filename=transactions_export_{budget_period_id}.json'
     return response

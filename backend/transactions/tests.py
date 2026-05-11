@@ -163,7 +163,9 @@ class TestListTransactions(TransactionsTestCase):
             created_by=self.user,
         )
 
-        data = self.get(f'/api/transactions?budget_period_id={self.period.id}&type=expense', **self.auth_headers())
+        data = self.get(
+            f'/api/transactions?budget_period_id={self.period.id}&transaction_type=expense', **self.auth_headers()
+        )
         self.assertStatus(200)
         self.assertEqual(len(data['items']), 1)
         self.assertEqual(data['items'][0]['type'], 'expense')
@@ -609,7 +611,7 @@ class TestExportTransactions(TransactionsTestCase):
         )
 
         response = self.client.get(
-            f'/api/transactions/export/?budget_period_id={self.period.id}&type=expense',
+            f'/api/transactions/export/?budget_period_id={self.period.id}&transaction_type=expense',
             **self.auth_headers(),
         )
         self.assertEqual(response.status_code, 200)
@@ -954,7 +956,7 @@ class TestTransactionTotals(TransactionsTestCase):
         )
 
         data = self.get(
-            f'/api/transactions/totals?budget_period_id={self.period.id}&type=income',
+            f'/api/transactions/totals?budget_period_id={self.period.id}&transaction_type=income',
             **self.auth_headers(),
         )
         self.assertStatus(200)

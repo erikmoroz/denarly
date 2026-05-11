@@ -91,7 +91,7 @@ class TransactionService:
         workspace_id: int,
         budget_period_id: int | None = None,
         current_date=None,
-        type: list | None = None,
+        transaction_type: list | None = None,
         category_id: list | None = None,
         currency: list | None = None,
         search: str | None = None,
@@ -122,8 +122,8 @@ class TransactionService:
             else:
                 return None
 
-        if type:
-            queryset = queryset.filter(type__in=type)
+        if transaction_type:
+            queryset = queryset.filter(type__in=transaction_type)
         if category_id:
             queryset = queryset.filter(category_id__in=category_id)
         if currency:
@@ -146,7 +146,7 @@ class TransactionService:
         workspace_id: int,
         budget_period_id: int | None = None,
         current_date=None,
-        type: list | None = None,
+        transaction_type: list | None = None,
         category_id: list | None = None,
         currency: list | None = None,
         search: str | None = None,
@@ -163,7 +163,7 @@ class TransactionService:
             workspace_id=workspace_id,
             budget_period_id=budget_period_id,
             current_date=current_date,
-            type=type,
+            transaction_type=transaction_type,
             category_id=category_id,
             currency=currency,
             search=search,
@@ -195,7 +195,7 @@ class TransactionService:
         workspace_id: int,
         budget_period_id: int | None = None,
         current_date=None,
-        type: list | None = None,
+        transaction_type: list | None = None,
         category_id: list | None = None,
         currency: list | None = None,
         search: str | None = None,
@@ -210,7 +210,7 @@ class TransactionService:
             workspace_id=workspace_id,
             budget_period_id=budget_period_id,
             current_date=current_date,
-            type=type,
+            transaction_type=transaction_type,
             category_id=category_id,
             currency=currency,
             search=search,
