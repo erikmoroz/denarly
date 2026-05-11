@@ -126,7 +126,12 @@ class TransactionTotalsItem(BaseModel):
 
 
 class TransactionTotalsResponse(BaseModel):
-    """Schema for transaction totals response."""
+    """Schema for transaction totals response.
+
+    The fields are mutually exclusive depending on the group_by value:
+    - group_by='type' or 'category' → only 'totals' is populated
+    - group_by='type,category' → only 'by_type' and 'by_category' are populated
+    """
 
     totals: list[TransactionTotalsItem] | None = None
     by_type: list[TransactionTotalsItem] | None = None

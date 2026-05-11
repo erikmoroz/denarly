@@ -57,7 +57,7 @@ export default function CurrencyExchangesPage() {
       if (!selectedPeriodId) return null
       return currencyExchangesApi.getTotals({ budget_period_id: selectedPeriodId })
     },
-    enabled: !!selectedPeriodId && totalItems > 0,
+    enabled: !!selectedPeriodId,
   })
 
   const deleteMutation = useMutation({

@@ -87,11 +87,7 @@ def get_transaction_totals(
         amount_lte=amount_lte,
     )
     if group_by == 'type,category':
-        # NOTE: This issues two separate DB queries. A future optimization could
-        # compute both groupings in a single query using conditional aggregation.
-        by_type = TransactionService.totals(**common_kwargs, group_by='type')
-        by_category = TransactionService.totals(**common_kwargs, group_by='category')
-        return {'by_type': by_type, 'by_category': by_category}
+        return TransactionService.totals_combined(**common_kwargs)
     totals = TransactionService.totals(**common_kwargs, group_by=group_by)
     return {'totals': totals}
 

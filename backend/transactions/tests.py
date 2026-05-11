@@ -1336,8 +1336,8 @@ class TestTransactionTotals(TransactionsTestCase):
             **self.auth_headers(),
         )
         self.assertStatus(200)
-        # Should have by_type and by_category, no totals
-        self.assertNotIn('totals', data)
+        # Should have by_type and by_category; totals should be absent/null
+        self.assertIsNone(data.get('totals'))
         self.assertEqual(len(data['by_type']), 2)
         self.assertEqual(len(data['by_category']), 1)  # Both uncategorized
         by_type_map = {(t['group'], t['currency']): t['total'] for t in data['by_type']}

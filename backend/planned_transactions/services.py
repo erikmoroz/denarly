@@ -123,7 +123,7 @@ class PlannedTransactionService:
             rows = (
                 queryset.annotate(
                     currency_symbol=F('currency__symbol'),
-                    category_name=Coalesce('category__name', Value(TotalsLabel.UNCATEGORIZED)),
+                    category_name=Coalesce('category__name', Value(str(TotalsLabel.UNCATEGORIZED))),
                 )
                 .values('category_name', 'currency_symbol')
                 .annotate(total=Sum('amount'))

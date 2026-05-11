@@ -89,7 +89,7 @@ export default function Planned() {
         group_by: 'category',
       })
     },
-    enabled: !!selectedPeriodId && totalItems > 0,
+    enabled: !!selectedPeriodId,
   })
 
   const deleteMutation = useMutation({

@@ -228,7 +228,7 @@ class TransactionService:
             rows = (
                 queryset.annotate(
                     currency_symbol=F('currency__symbol'),
-                    category_name=Coalesce('category__name', Value(TotalsLabel.UNCATEGORIZED)),
+                    category_name=Coalesce('category__name', Value(str(TotalsLabel.UNCATEGORIZED))),
                 )
                 .values('category_name', 'currency_symbol')
                 .annotate(total=Sum('amount'))
@@ -244,6 +244,69 @@ class TransactionService:
             .order_by('type', 'currency_symbol')
         )
         return [{'group': r['type'], 'currency': r['currency_symbol'], 'total': r['total']} for r in rows]
+
+    @staticmethod
+    def totals_combined(
+        workspace_id: int,
+        budget_period_id: int | None = None,
+        current_date=None,
+        transaction_type: list | None = None,
+        category_id: list | None = None,
+        currency: list | None = None,
+        search: str | None = None,
+        start_date=None,
+        end_date=None,
+        amount_gte: Decimal | None = None,
+        amount_lte: Decimal | None = None,
+    ) -> dict:
+        """Get both type and category totals in a single DB query.
+
+        Returns {'by_type': [...], 'by_category': [...]}.
+        The base queryset is built once; both groupings are derived from a single
+        database round-trip using Python-side aggregation over the filtered rows.
+        """
+        from collections import defaultdict
+
+        queryset = TransactionService._build_filtered_queryset(
+            workspace_id=workspace_id,
+            budget_period_id=budget_period_id,
+            current_date=current_date,
+            transaction_type=transaction_type,
+            category_id=category_id,
+            currency=currency,
+            search=search,
+            start_date=start_date,
+            end_date=end_date,
+            amount_gte=amount_gte,
+            amount_lte=amount_lte,
+        )
+
+        if queryset is None:
+            return {'by_type': [], 'by_category': []}
+
+        rows = queryset.annotate(
+            currency_symbol=F('currency__symbol'),
+            category_name=Coalesce('category__name', Value(str(TotalsLabel.UNCATEGORIZED))),
+        ).values_list('type', 'category_name', 'currency_symbol', 'amount')
+
+        type_map: dict[str, dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
+        cat_map: dict[str, dict[str, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
+
+        for trans_type, category, curr, amount in rows:
+            type_map[trans_type][curr] += amount
+            cat_map[category][curr] += amount
+
+        by_type = [
+            {'group': t, 'currency': c, 'total': total}
+            for t in sorted(type_map)
+            for c, total in sorted(type_map[t].items())
+        ]
+        by_category = [
+            {'group': cat, 'currency': c, 'total': total}
+            for cat in sorted(cat_map)
+            for c, total in sorted(cat_map[cat].items())
+        ]
+        return {'by_type': by_type, 'by_category': by_category}
 
     @staticmethod
     @db_transaction.atomic

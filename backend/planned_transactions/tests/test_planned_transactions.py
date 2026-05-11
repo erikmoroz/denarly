@@ -16,6 +16,7 @@ from period_balances.models import PeriodBalance
 from planned_transactions.factories import PlannedTransactionFactory
 from planned_transactions.models import PlannedTransaction
 from transactions.models import Transaction
+from workspaces.factories import WorkspaceFactory, WorkspaceMemberFactory
 from workspaces.models import Workspace, WorkspaceMember
 
 User = get_user_model()
@@ -1086,8 +1087,6 @@ class TestPlannedTransactionTotals(PlannedTransactionTestCase):
 
     def test_totals_cross_workspace_isolation(self):
         """Test that totals only include planned transactions from the user's workspace."""
-        from workspaces.factories import WorkspaceFactory, WorkspaceMemberFactory
-
         other_workspace = WorkspaceFactory(name='Other Workspace')
         other_user = User.objects.create_user(
             email='other@example.com',
@@ -1190,8 +1189,6 @@ class TestPlannedTransactionTotals(PlannedTransactionTestCase):
 
     def test_totals_group_by_category_cross_workspace(self):
         """Test that category totals only include planned transactions from the user's workspace."""
-        from workspaces.factories import WorkspaceFactory, WorkspaceMemberFactory
-
         other_workspace = WorkspaceFactory(name='Other Workspace')
         other_user = User.objects.create_user(
             email='other2@example.com',
