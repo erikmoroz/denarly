@@ -265,7 +265,7 @@ export interface CurrencyExchangeTotalsResponse {
 
 // ============= Enums =============
 
-export enum TotalsLabel {
+export const TotalsLabel = {
   /** Display label for records without a category. Synced with backend common.enums.TotalsLabel. */
-  UNCATEGORIZED = 'Uncategorized',
-}
+  UNCATEGORIZED: 'Uncategorized',
+} as const
