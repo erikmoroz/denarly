@@ -1307,3 +1307,39 @@ class TestTransactionTotals(TransactionsTestCase):
         self.assertEqual(len(totals), 1)
         self.assertEqual(totals[0]['group'], 'Groceries')
         self.assertEqual(totals[0]['total'], '250.00')
+
+    def test_totals_group_by_both(self):
+        """Test totals with group_by=type,category returns both groupings."""
+        Transaction.objects.create(
+            budget_period=self.period,
+            date=date(2025, 1, 15),
+            description='Salary',
+            amount=Decimal('5000.00'),
+            currency=self.pln_currency,
+            type='income',
+            created_by=self.user,
+            workspace=self.workspace,
+        )
+        Transaction.objects.create(
+            budget_period=self.period,
+            date=date(2025, 1, 16),
+            description='Groceries',
+            amount=Decimal('250.00'),
+            currency=self.pln_currency,
+            type='expense',
+            created_by=self.user,
+            workspace=self.workspace,
+        )
+
+        data = self.get(
+            f'/api/transactions/totals?budget_period_id={self.period.id}&group_by=type,category',
+            **self.auth_headers(),
+        )
+        self.assertStatus(200)
+        # Should have by_type and by_category, no totals
+        self.assertNotIn('totals', data)
+        self.assertEqual(len(data['by_type']), 2)
+        self.assertEqual(len(data['by_category']), 1)  # Both uncategorized
+        by_type_map = {(t['group'], t['currency']): t['total'] for t in data['by_type']}
+        self.assertEqual(by_type_map[('income', 'PLN')], '5000.00')
+        self.assertEqual(by_type_map[('expense', 'PLN')], '250.00')

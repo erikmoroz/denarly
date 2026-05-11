@@ -69,11 +69,11 @@ def get_transaction_totals(
     end_date: date | None = Query(None),
     amount_gte: Decimal | None = Query(None),
     amount_lte: Decimal | None = Query(None),
-    group_by: str = Query('type', pattern=r'^(type|category)$'),
+    group_by: str = Query('type', pattern=r'^(type|category|type,category)$'),
 ):
     """Get aggregated transaction totals grouped by type or category."""
     workspace_id = request.auth.current_workspace_id
-    totals = TransactionService.totals(
+    common_kwargs = dict(
         workspace_id=workspace_id,
         budget_period_id=budget_period_id,
         current_date=current_date,
@@ -85,8 +85,14 @@ def get_transaction_totals(
         end_date=end_date,
         amount_gte=amount_gte,
         amount_lte=amount_lte,
-        group_by=group_by,
     )
+    if group_by == 'type,category':
+        # NOTE: This issues two separate DB queries. A future optimization could
+        # compute both groupings in a single query using conditional aggregation.
+        by_type = TransactionService.totals(**common_kwargs, group_by='type')
+        by_category = TransactionService.totals(**common_kwargs, group_by='category')
+        return {'by_type': by_type, 'by_category': by_category}
+    totals = TransactionService.totals(**common_kwargs, group_by=group_by)
     return {'totals': totals}
 
 

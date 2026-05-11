@@ -128,4 +128,6 @@ class TransactionTotalsItem(BaseModel):
 class TransactionTotalsResponse(BaseModel):
     """Schema for transaction totals response."""
 
-    totals: list[TransactionTotalsItem]
+    totals: list[TransactionTotalsItem] | None = None
+    by_type: list[TransactionTotalsItem] | None = None
+    by_category: list[TransactionTotalsItem] | None = None
