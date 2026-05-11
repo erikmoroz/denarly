@@ -160,7 +160,7 @@ export const budgetsApi = {
 
 export const transactionsApi = {
   getAll: (params?: { budget_period_id?: number; current_date?: string; search?: string; start_date?: string; end_date?: string; transaction_type?: string[]; category_id?: number[]; currency?: string[]; amount_gte?: number; amount_lte?: number; ordering?: 'date' | '-date'; page?: number; page_size?: number }) => api.get('/transactions', { params }),
-  getTotals: (params?: { budget_period_id?: number; current_date?: string; search?: string; start_date?: string; end_date?: string; transaction_type?: string[]; category_id?: number[]; currency?: string[]; amount_gte?: number; amount_lte?: number; group_by?: 'type' | 'category' }): Promise<TransactionTotalsResponse> =>
+  getTotals: (params?: { budget_period_id?: number; current_date?: string; search?: string; start_date?: string; end_date?: string; transaction_type?: string[]; category_id?: number[]; currency?: string[]; amount_gte?: number; amount_lte?: number; group_by?: 'type' | 'category' | 'type,category' }): Promise<TransactionTotalsResponse> =>
     api.get<TransactionTotalsResponse>('/transactions/totals', { params }).then(res => res.data),
   create: (data: { date: string; description: string; category_id: number; amount: number; currency: string; type: 'expense' | 'income' }) => api.post('/transactions', data),
   update: (id: number, data: { date: string; description: string; category_id: number; amount: number; currency: string; type: 'expense' | 'income' }) => api.put(`/transactions/${id}`, data),

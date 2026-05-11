@@ -237,7 +237,9 @@ export interface TransactionTotalItem {
 }
 
 export interface TransactionTotalsResponse {
-  totals: TransactionTotalItem[];
+  totals?: TransactionTotalItem[];
+  by_type?: TransactionTotalItem[];
+  by_category?: TransactionTotalItem[];
 }
 
 export interface PlannedTransactionTotalItem {
