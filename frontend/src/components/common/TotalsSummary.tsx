@@ -24,8 +24,15 @@ type Props = TransactionProps | PlannedProps | ExchangeProps
 // ============= Helpers =============
 
 function formatAmount(total: string): string {
-  const num = parseFloat(total)
-  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  // String-based formatting to preserve full Decimal precision from backend.
+  // Avoids parseFloat which loses precision for large values (e.g. "123456789012345.67").
+  const isNegative = total.startsWith('-')
+  const abs = isNegative ? total.slice(1) : total
+  const [intPart, decPart = '00'] = abs.split('.')
+  const paddedDec = decPart.length < 2 ? decPart.padEnd(2, '0') : decPart.slice(0, 2)
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  const sign = isNegative ? '-' : ''
+  return `${sign}${formattedInt}.${paddedDec}`
 }
 
 function extractCurrencies(items: { currency: string }[]): string[] {

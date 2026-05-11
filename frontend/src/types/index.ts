@@ -260,3 +260,10 @@ export interface CurrencyExchangeTotalItem {
 export interface CurrencyExchangeTotalsResponse {
   totals: CurrencyExchangeTotalItem[];
 }
+
+// ============= Enums =============
+
+export enum TotalsLabel {
+  /** Display label for records without a category. Synced with backend common.enums.TotalsLabel. */
+  UNCATEGORIZED = 'Uncategorized',
+}
