@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { X } from 'lucide-react'
-import { currencyExchangesApi } from '../../../api/client'
+import { currencyExchangesApi, transactionsApi } from '../../../api/client'
 import type { CurrencyExchange } from '../../../types'
+import { useBudgetPeriod } from '../../../contexts/BudgetPeriodContext'
 import { format } from 'date-fns'
 import DatePicker from '../../DatePicker'
 
@@ -13,22 +14,26 @@ interface Props {
   exchange?: CurrencyExchange | null
   preselectedFrom?: string
   preselectedTo?: string
+  onLinkedTransactions?: (exchange: CurrencyExchange) => void
 }
 
 const CURRENCIES = ['PLN', 'USD', 'EUR', 'UAH']
 
-export default function CurrencyExchangeFormModal({ isOpen, onClose, exchange, preselectedFrom, preselectedTo }: Props) {
+export default function CurrencyExchangeFormModal({ isOpen, onClose, exchange, preselectedFrom, preselectedTo, onLinkedTransactions }: Props) {
   const [date, setDate] = useState('')
   const [description, setDescription] = useState('')
   const [fromCurrency, setFromCurrency] = useState('PLN')
   const [fromAmount, setFromAmount] = useState('')
   const [toCurrency, setToCurrency] = useState('USD')
   const [toAmount, setToAmount] = useState('')
+  const [createLinked, setCreateLinked] = useState(false)
   const queryClient = useQueryClient()
+  const { selectedPeriodId } = useBudgetPeriod()
 
   const today = format(new Date(), 'yyyy-MM-dd')
 
   useEffect(() => {
+    setCreateLinked(false)
     if (exchange) {
       setDate(exchange.date)
       setDescription(exchange.description || '')
@@ -51,13 +56,50 @@ export default function CurrencyExchangeFormModal({ isOpen, onClose, exchange, p
       exchange
         ? currencyExchangesApi.update(exchange.id, data)
         : currencyExchangesApi.create(data),
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['currency-exchanges'] })
       queryClient.invalidateQueries({ queryKey: ['currency-exchanges-totals'] })
       // Force refetch of period-balances to ensure UI updates immediately
       // This is needed because the app uses persistent cache with staleTime
       queryClient.refetchQueries({ queryKey: ['period-balances'] })
       toast.success(exchange ? 'Exchange updated successfully!' : 'Exchange created successfully!')
+
+      if (createLinked && !exchange && onLinkedTransactions && selectedPeriodId) {
+        const createdExchange: CurrencyExchange = response.data
+        const exchangeDesc = createdExchange.description || `Currency exchange: ${createdExchange.from_currency} → ${createdExchange.to_currency}`
+
+        // Auto-create from-side expense (fire and forget)
+        transactionsApi.create({
+          date: createdExchange.date,
+          description: exchangeDesc,
+          category_id: null as any,
+          amount: createdExchange.from_amount,
+          currency: createdExchange.from_currency,
+          type: 'expense',
+          budget_period_id: selectedPeriodId,
+        }).catch(() => {
+          toast.error('Failed to create linked expense transaction')
+        })
+
+        // Auto-create to-side income (fire and forget)
+        transactionsApi.create({
+          date: createdExchange.date,
+          description: exchangeDesc,
+          category_id: null as any,
+          amount: createdExchange.to_amount,
+          currency: createdExchange.to_currency,
+          type: 'income',
+          budget_period_id: selectedPeriodId,
+        }).catch(() => {
+          toast.error('Failed to create linked income transaction')
+        })
+
+        queryClient.invalidateQueries({ queryKey: ['transactions'] })
+        queryClient.invalidateQueries({ queryKey: ['transactions-totals'] })
+
+        onLinkedTransactions(createdExchange)
+      }
+
       onClose()
     },
     onError: (error: any) => {
@@ -200,6 +242,21 @@ export default function CurrencyExchangeFormModal({ isOpen, onClose, exchange, p
               <p className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
                 Exchange Rate: <span className="font-semibold text-text">{calculateRate()}</span>
               </p>
+            </div>
+          )}
+
+          {!exchange && (
+            <div className="mb-6 flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="createLinked"
+                checked={createLinked}
+                onChange={(e) => setCreateLinked(e.target.checked)}
+                className="w-4 h-4 rounded-none border-border text-primary focus:ring-border-focus"
+              />
+              <label htmlFor="createLinked" className="text-sm text-text cursor-pointer select-none">
+                Create linked transactions
+              </label>
             </div>
           )}
 
