@@ -194,7 +194,7 @@ export default function Transactions() {
         search: searchQuery || undefined,
         start_date: appliedStartDate || undefined,
         end_date: appliedEndDate || undefined,
-        type: appliedTypes.length > 0 ? appliedTypes : undefined,
+        transaction_type: appliedTypes.length > 0 ? appliedTypes : undefined,
         category_id: appliedCategories.length > 0 ? appliedCategories : undefined,
         currency: appliedCurrencies.length > 0 ? appliedCurrencies : undefined,
         amount_gte: appliedAmountMin ? parseFloat(appliedAmountMin) : undefined,
@@ -225,7 +225,7 @@ export default function Transactions() {
         search: searchQuery || undefined,
         start_date: appliedStartDate || undefined,
         end_date: appliedEndDate || undefined,
-        type: appliedTypes.length > 0 ? appliedTypes : undefined,
+        transaction_type: appliedTypes.length > 0 ? appliedTypes : undefined,
         category_id: appliedCategories.length > 0 ? appliedCategories : undefined,
         currency: appliedCurrencies.length > 0 ? appliedCurrencies : undefined,
         amount_gte: appliedAmountMin ? parseFloat(appliedAmountMin) : undefined,
@@ -246,7 +246,7 @@ export default function Transactions() {
         search: searchQuery || undefined,
         start_date: appliedStartDate || undefined,
         end_date: appliedEndDate || undefined,
-        type: appliedTypes.length > 0 ? appliedTypes : undefined,
+        transaction_type: appliedTypes.length > 0 ? appliedTypes : undefined,
         category_id: appliedCategories.length > 0 ? appliedCategories : undefined,
         currency: appliedCurrencies.length > 0 ? appliedCurrencies : undefined,
         amount_gte: appliedAmountMin ? parseFloat(appliedAmountMin) : undefined,
@@ -294,11 +294,11 @@ export default function Transactions() {
     if (!selectedPeriodId) return
 
     try {
-      const params: { budget_period_id: number; type?: string } = {
+      const params: { budget_period_id: number; transaction_type?: string } = {
         budget_period_id: selectedPeriodId
       }
       if (appliedTypes.length > 0) {
-        params.type = appliedTypes[0]
+        params.transaction_type = appliedTypes[0]
       }
 
       const response = await transactionsApi.export(params)
