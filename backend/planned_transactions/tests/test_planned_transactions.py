@@ -9,6 +9,7 @@ from django.test import TestCase
 from budget_accounts.models import BudgetAccount
 from budget_periods.factories import BudgetPeriodFactory
 from categories.factories import CategoryFactory
+from common.enums import TotalsLabel
 from common.tests.mixins import APIClientMixin, AuthMixin
 from period_balances.factories import PeriodBalanceFactory
 from period_balances.models import PeriodBalance
@@ -1183,8 +1184,8 @@ class TestPlannedTransactionTotals(PlannedTransactionTestCase):
         self.assertStatus(200)
         totals = data['totals']
         groups = [t['group'] for t in totals]
-        self.assertIn('Uncategorized', groups)
-        uncategorized = [t for t in totals if t['group'] == 'Uncategorized'][0]
+        self.assertIn(TotalsLabel.UNCATEGORIZED, groups)
+        uncategorized = [t for t in totals if t['group'] == TotalsLabel.UNCATEGORIZED][0]
         self.assertEqual(Decimal(uncategorized['total']), Decimal('1200.00'))
 
     def test_totals_group_by_category_cross_workspace(self):

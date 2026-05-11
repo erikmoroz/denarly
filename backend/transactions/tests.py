@@ -11,6 +11,7 @@ from budget_accounts.models import BudgetAccount
 from budget_periods.factories import BudgetPeriodFactory
 from budget_periods.models import BudgetPeriod
 from categories.factories import CategoryFactory
+from common.enums import TotalsLabel
 from common.tests.mixins import APIClientMixin, AuthMixin
 from period_balances.factories import PeriodBalanceFactory
 from period_balances.models import PeriodBalance
@@ -1216,7 +1217,7 @@ class TestTransactionTotals(TransactionsTestCase):
 
         totals_map = {(t['group'], t['currency']): t['total'] for t in totals}
         self.assertEqual(totals_map[('Groceries', 'PLN')], '250.00')
-        self.assertEqual(totals_map[('Uncategorized', 'PLN')], '100.00')
+        self.assertEqual(totals_map[(TotalsLabel.UNCATEGORIZED, 'PLN')], '100.00')
 
     def test_totals_group_by_category_cross_workspace(self):
         """Test category totals only returns transactions from the user's workspace."""

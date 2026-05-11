@@ -11,6 +11,7 @@ from django.db.models.functions import Coalesce
 from budget_periods.models import BudgetPeriod
 from budget_periods.services import BudgetPeriodService
 from categories.models import Category
+from common.enums import TotalsLabel
 from common.exceptions import CurrencyNotFoundInWorkspaceError
 from common.services.base import get_or_create_period_balance, resolve_currency
 from core.schemas.pagination import DEFAULT_PAGE_SIZE, paginate_queryset
@@ -227,7 +228,7 @@ class TransactionService:
             rows = (
                 queryset.annotate(
                     currency_symbol=F('currency__symbol'),
-                    category_name=Coalesce('category__name', Value('Uncategorized')),
+                    category_name=Coalesce('category__name', Value(TotalsLabel.UNCATEGORIZED)),
                 )
                 .values('category_name', 'currency_symbol')
                 .annotate(total=Sum('amount'))
