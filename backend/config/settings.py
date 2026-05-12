@@ -156,51 +156,51 @@ USE_S3_STORAGE = os.getenv('USE_S3_STORAGE', 'false').lower() == 'true'
 
 if USE_S3_STORAGE:
     # Internal URL for boto3 API calls (server-side, within Docker network)
-    AWS_S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL', 'http://localhost:9000')
+    S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL', 'http://localhost:9000')
     # External URL for browser-facing URLs (static files, presigned URLs)
-    AWS_S3_EXTERNAL_URL = os.getenv('S3_EXTERNAL_URL', AWS_S3_ENDPOINT_URL)
+    S3_EXTERNAL_URL = os.getenv('S3_EXTERNAL_URL', S3_ENDPOINT_URL)
     # S3 access credentials
-    AWS_S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY', '')
-    AWS_S3_SECRET_KEY = os.getenv('S3_SECRET_KEY', '')
+    S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY', '')
+    S3_SECRET_KEY = os.getenv('S3_SECRET_KEY', '')
     # Bucket for Django collectstatic output
-    AWS_STORAGE_BUCKET_NAME = os.getenv('S3_BUCKET_STATIC', 'denarly-static')
+    S3_BUCKET_STATIC = os.getenv('S3_BUCKET_STATIC', 'denarly-static')
     # Bucket for user-uploaded media files
-    AWS_MEDIA_BUCKET_NAME = os.getenv('S3_BUCKET_MEDIA', 'denarly-media')
+    S3_BUCKET_MEDIA = os.getenv('S3_BUCKET_MEDIA', 'denarly-media')
     # Bucket for application logs
-    AWS_LOGS_BUCKET_NAME = os.getenv('S3_BUCKET_LOGS', 'denarly-logs')
+    S3_BUCKET_LOGS = os.getenv('S3_BUCKET_LOGS', 'denarly-logs')
     # Include presigned query parameters in media URLs (private access)
-    AWS_QUERYSTRING_AUTH = True
+    S3_QUERYSTRING_AUTH = True
     # Parse external URL for static file custom domain
     from urllib.parse import urlparse as _urlparse
 
-    _external_netloc = _urlparse(AWS_S3_EXTERNAL_URL).netloc
+    _external_netloc = _urlparse(S3_EXTERNAL_URL).netloc
 
     STORAGES = {
         'default': {
             'BACKEND': 'storages.backends.s3.S3Storage',
             'OPTIONS': {
-                'endpoint_url': AWS_S3_ENDPOINT_URL,
-                'access_key': AWS_S3_ACCESS_KEY,
-                'secret_key': AWS_S3_SECRET_KEY,
-                'bucket_name': AWS_MEDIA_BUCKET_NAME,
+                'endpoint_url': S3_ENDPOINT_URL,
+                'access_key': S3_ACCESS_KEY,
+                'secret_key': S3_SECRET_KEY,
+                'bucket_name': S3_BUCKET_MEDIA,
             },
         },
         'staticfiles': {
             'BACKEND': 'storages.backends.s3.S3Storage',
             'OPTIONS': {
-                'endpoint_url': AWS_S3_ENDPOINT_URL,
-                'access_key': AWS_S3_ACCESS_KEY,
-                'secret_key': AWS_S3_SECRET_KEY,
-                'bucket_name': AWS_STORAGE_BUCKET_NAME,
+                'endpoint_url': S3_ENDPOINT_URL,
+                'access_key': S3_ACCESS_KEY,
+                'secret_key': S3_SECRET_KEY,
+                'bucket_name': S3_BUCKET_STATIC,
                 # Generate browser-accessible URLs using external host (no presigned params)
-                'custom_domain': f'{_external_netloc}/{AWS_STORAGE_BUCKET_NAME}',
+                'custom_domain': f'{_external_netloc}/{S3_BUCKET_STATIC}',
                 'url_protocol': 'http:',
             },
         },
     }
 
-    STATIC_URL = f'{AWS_S3_EXTERNAL_URL}/{AWS_STORAGE_BUCKET_NAME}/'
-    MEDIA_URL = f'{AWS_S3_EXTERNAL_URL}/{AWS_MEDIA_BUCKET_NAME}/'
+    STATIC_URL = f'{S3_EXTERNAL_URL}/{S3_BUCKET_STATIC}/'
+    MEDIA_URL = f'{S3_EXTERNAL_URL}/{S3_BUCKET_MEDIA}/'
 else:
     # Local filesystem storage (default for host-based development)
     STATIC_URL = 'static/'

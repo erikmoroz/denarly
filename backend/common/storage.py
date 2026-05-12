@@ -24,9 +24,9 @@ class StorageService:
         """Create and return an S3 client configured for the storage backend."""
         return boto3.client(
             's3',
-            endpoint_url=settings.AWS_S3_ENDPOINT_URL,
-            aws_access_key_id=settings.AWS_S3_ACCESS_KEY,
-            aws_secret_access_key=settings.AWS_S3_SECRET_KEY,
+            endpoint_url=settings.S3_ENDPOINT_URL,
+            aws_access_key_id=settings.S3_ACCESS_KEY,
+            aws_secret_access_key=settings.S3_SECRET_KEY,
         )
 
     @staticmethod
@@ -38,9 +38,9 @@ class StorageService:
     def _get_bucket_names():
         """Return the list of configured bucket names."""
         return [
-            settings.AWS_STORAGE_BUCKET_NAME,
-            settings.AWS_MEDIA_BUCKET_NAME,
-            settings.AWS_LOGS_BUCKET_NAME,
+            settings.S3_BUCKET_STATIC,
+            settings.S3_BUCKET_MEDIA,
+            settings.S3_BUCKET_LOGS,
         ]
 
     @staticmethod
@@ -80,12 +80,12 @@ class StorageService:
         This is safe because generate_presigned_url() is a purely local cryptographic
         operation — no network call is made.
         """
-        external_url = getattr(settings, 'AWS_S3_EXTERNAL_URL', settings.AWS_S3_ENDPOINT_URL)
+        external_url = getattr(settings, 'S3_EXTERNAL_URL', settings.S3_ENDPOINT_URL)
         return boto3.client(
             's3',
             endpoint_url=external_url,
-            aws_access_key_id=settings.AWS_S3_ACCESS_KEY,
-            aws_secret_access_key=settings.AWS_S3_SECRET_KEY,
+            aws_access_key_id=settings.S3_ACCESS_KEY,
+            aws_secret_access_key=settings.S3_SECRET_KEY,
         )
 
     # --- Public methods ---
@@ -110,10 +110,10 @@ class StorageService:
                     logger.exception('Failed to create bucket: %s', bucket_name)
 
         # Public-read policy on static bucket so browsers can fetch CSS/JS without auth
-        StorageService._set_public_read_policy(client, settings.AWS_STORAGE_BUCKET_NAME)
+        StorageService._set_public_read_policy(client, settings.S3_BUCKET_STATIC)
         # Explicitly enforce private access on media and logs buckets (defense-in-depth)
-        StorageService._ensure_private_policy(client, settings.AWS_MEDIA_BUCKET_NAME)
-        StorageService._ensure_private_policy(client, settings.AWS_LOGS_BUCKET_NAME)
+        StorageService._ensure_private_policy(client, settings.S3_BUCKET_MEDIA)
+        StorageService._ensure_private_policy(client, settings.S3_BUCKET_LOGS)
 
     @staticmethod
     def save_file(bucket_name: str, key: str, content, content_type: str = 'application/octet-stream') -> str | None:
@@ -175,7 +175,7 @@ class StorageService:
         client = StorageService._get_client()
         try:
             client.put_object(
-                Bucket=settings.AWS_LOGS_BUCKET_NAME,
+                Bucket=settings.S3_BUCKET_LOGS,
                 Key=key,
                 Body=content.encode('utf-8'),
                 ContentType='text/plain',
