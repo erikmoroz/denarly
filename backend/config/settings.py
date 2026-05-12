@@ -195,6 +195,8 @@ if USE_S3_STORAGE:
                 # Generate browser-accessible URLs using external host (no presigned params)
                 'custom_domain': f'{_external_netloc}/{AWS_STORAGE_BUCKET_NAME}',
                 'url_protocol': 'http:',
+                # Public-read ACL so browsers can fetch static files without authentication
+                'default_acl': 'public-read',
             },
         },
     }

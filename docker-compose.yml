@@ -53,6 +53,7 @@ services:
     environment:
       - RUSTFS_ACCESS_KEY=rustfsadmin
       - RUSTFS_SECRET_KEY=rustfsadmin
+      - RUSTFS_SERVER_URL=http://localhost:9000
     volumes:
       - rustfs_data_dev:/data
     networks:
