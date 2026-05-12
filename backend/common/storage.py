@@ -64,6 +64,15 @@ class StorageService:
             logger.exception('Failed to set policy on bucket: %s', bucket_name)
 
     @staticmethod
+    def _ensure_private_policy(client, bucket_name: str) -> None:
+        """Remove any bucket policy, ensuring all access requires authentication."""
+        try:
+            client.delete_bucket_policy(Bucket=bucket_name)
+            logger.info('Ensured private policy on bucket: %s', bucket_name)
+        except ClientError:
+            logger.exception('Failed to clear policy on bucket: %s', bucket_name)
+
+    @staticmethod
     def _get_url_client():
         """Create an S3 client configured for generating browser-accessible presigned URLs.
 
@@ -102,6 +111,9 @@ class StorageService:
 
         # Public-read policy on static bucket so browsers can fetch CSS/JS without auth
         StorageService._set_public_read_policy(client, settings.AWS_STORAGE_BUCKET_NAME)
+        # Explicitly enforce private access on media and logs buckets (defense-in-depth)
+        StorageService._ensure_private_policy(client, settings.AWS_MEDIA_BUCKET_NAME)
+        StorageService._ensure_private_policy(client, settings.AWS_LOGS_BUCKET_NAME)
 
     @staticmethod
     def save_file(bucket_name: str, key: str, content, content_type: str = 'application/octet-stream') -> str | None:
