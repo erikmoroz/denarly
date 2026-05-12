@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime, timezone
 
@@ -43,6 +44,26 @@ class StorageService:
         ]
 
     @staticmethod
+    def _set_public_read_policy(client, bucket_name: str) -> None:
+        """Apply a bucket policy allowing anonymous GET access to all objects."""
+        policy = {
+            'Version': '2012-10-17',
+            'Statement': [
+                {
+                    'Effect': 'Allow',
+                    'Principal': {'AWS': ['*']},
+                    'Action': ['s3:GetObject'],
+                    'Resource': [f'arn:aws:s3:::{bucket_name}/*'],
+                }
+            ],
+        }
+        try:
+            client.put_bucket_policy(Bucket=bucket_name, Policy=json.dumps(policy))
+            logger.info('Set public-read policy on bucket: %s', bucket_name)
+        except ClientError:
+            logger.exception('Failed to set policy on bucket: %s', bucket_name)
+
+    @staticmethod
     def _get_url_client():
         """Create an S3 client configured for generating browser-accessible presigned URLs.
 
@@ -78,6 +99,9 @@ class StorageService:
                     logger.info('Created bucket: %s', bucket_name)
                 except ClientError:
                     logger.exception('Failed to create bucket: %s', bucket_name)
+
+        # Public-read policy on static bucket so browsers can fetch CSS/JS without auth
+        StorageService._set_public_read_policy(client, settings.AWS_STORAGE_BUCKET_NAME)
 
     @staticmethod
     def save_file(bucket_name: str, key: str, content, content_type: str = 'application/octet-stream') -> str | None:
