@@ -23,9 +23,6 @@ COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
 
-COPY docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
-
 EXPOSE 8000
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["uv", "run", "uvicorn", "config.asgi:application", "--host", "0.0.0.0", "--port", "8000"]

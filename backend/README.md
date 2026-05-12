@@ -444,20 +444,21 @@ Interactive docs at `http://127.0.0.1:8000/api/docs`
 
 ## Docker Support
 
-A Dockerfile is provided for containerized deployment. The container automatically runs migrations and seeds legal documents on startup:
+A Dockerfile is provided for containerized deployment. Migrations and legal document seeding are run as separate steps before starting the server:
 
 ```bash
 # Build image
 docker build -t denarly-backend .
 
-# Run container
+# Run migrations
+docker run --rm --env-file .env denarly-backend python manage.py migrate
+
+# Seed legal documents
+docker run --rm --env-file .env denarly-backend python manage.py seed_legal_documents
+
+# Run the server
 docker run -p 8000:8000 --env-file .env denarly-backend
 ```
-
-The entrypoint script (`docker-entrypoint.sh`) executes:
-1. `python manage.py migrate` — Run database migrations
-2. `python manage.py seed_legal_documents` — Seed legal documents from templates
-3. `uvicorn config.asgi:application` — Start the server
 
 ## Admin Access
 
