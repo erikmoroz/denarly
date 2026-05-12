@@ -115,6 +115,10 @@ services:
           echo "Collecting static files to S3..."
           uv run python manage.py collectstatic --noinput
         fi
+        if [ "$$USE_S3_STORAGE" = "true" ]; then
+          echo "Initializing storage buckets..."
+          uv run python manage.py init_storage_buckets
+        fi
         echo "Starting dev server (autoreload)..."
         exec uv run uvicorn config.asgi:application --host 0.0.0.0 --port 8000 --reload
 

@@ -12,5 +12,10 @@ if [ "$USE_S3_STORAGE" = "true" ]; then
     uv run python manage.py collectstatic --noinput
 fi
 
+if [ "$USE_S3_STORAGE" = "true" ]; then
+    echo "Initializing storage buckets..."
+    uv run python manage.py init_storage_buckets
+fi
+
 echo "Starting server..."
 exec "$@"
