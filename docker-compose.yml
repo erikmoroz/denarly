@@ -41,6 +41,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: denarly_api
+    user: root
     env_file:
       - .env
     environment:
