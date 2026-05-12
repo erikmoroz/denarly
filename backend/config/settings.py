@@ -151,7 +151,56 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+# S3-compatible object storage toggle
+USE_S3_STORAGE = os.getenv('USE_S3_STORAGE', 'false').lower() == 'true'
+
+if USE_S3_STORAGE:
+    # S3 endpoint URL for RustFS or any S3-compatible service
+    AWS_S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL', 'http://localhost:9000')
+    # S3 access credentials
+    AWS_S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY', '')
+    AWS_S3_SECRET_KEY = os.getenv('S3_SECRET_KEY', '')
+    # Bucket for Django collectstatic output
+    AWS_STORAGE_BUCKET_NAME = os.getenv('S3_BUCKET_STATIC', 'denarly-static')
+    # Bucket for user-uploaded media files
+    AWS_MEDIA_BUCKET_NAME = os.getenv('S3_BUCKET_MEDIA', 'denarly-media')
+    # Bucket for application logs
+    AWS_LOGS_BUCKET_NAME = os.getenv('S3_BUCKET_LOGS', 'denarly-logs')
+    # Include presigned query parameters in media URLs (private access)
+    AWS_QUERYSTRING_AUTH = True
+    # Custom domain not used — URLs go through S3 endpoint directly
+    AWS_S3_CUSTOM_DOMAIN = None
+    AWS_MEDIA_CUSTOM_DOMAIN = None
+
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'endpoint_url': AWS_S3_ENDPOINT_URL,
+                'access_key': AWS_S3_ACCESS_KEY,
+                'secret_key': AWS_S3_SECRET_KEY,
+                'bucket_name': AWS_MEDIA_BUCKET_NAME,
+            },
+        },
+        'staticfiles': {
+            'BACKEND': 'storages.backends.s3.S3Storage',
+            'OPTIONS': {
+                'endpoint_url': AWS_S3_ENDPOINT_URL,
+                'access_key': AWS_S3_ACCESS_KEY,
+                'secret_key': AWS_S3_SECRET_KEY,
+                'bucket_name': AWS_STORAGE_BUCKET_NAME,
+            },
+        },
+    }
+
+    STATIC_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/'
+    MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_MEDIA_BUCKET_NAME}/'
+else:
+    # Local filesystem storage (default for host-based development)
+    STATIC_URL = 'static/'
+    STATIC_ROOT = BASE_DIR / 'staticfiles'
+    MEDIA_ROOT = BASE_DIR / 'mediafiles'
+    MEDIA_URL = 'media/'
 
 # File upload limits
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5MB
