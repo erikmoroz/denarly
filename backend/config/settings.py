@@ -155,8 +155,10 @@ USE_TZ = True
 USE_S3_STORAGE = os.getenv('USE_S3_STORAGE', 'false').lower() == 'true'
 
 if USE_S3_STORAGE:
-    # S3 endpoint URL for RustFS or any S3-compatible service
+    # Internal URL for boto3 API calls (server-side, within Docker network)
     AWS_S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL', 'http://localhost:9000')
+    # External URL for browser-facing URLs (static files, presigned URLs)
+    AWS_S3_EXTERNAL_URL = os.getenv('S3_EXTERNAL_URL', AWS_S3_ENDPOINT_URL)
     # S3 access credentials
     AWS_S3_ACCESS_KEY = os.getenv('S3_ACCESS_KEY', '')
     AWS_S3_SECRET_KEY = os.getenv('S3_SECRET_KEY', '')
@@ -168,9 +170,10 @@ if USE_S3_STORAGE:
     AWS_LOGS_BUCKET_NAME = os.getenv('S3_BUCKET_LOGS', 'denarly-logs')
     # Include presigned query parameters in media URLs (private access)
     AWS_QUERYSTRING_AUTH = True
-    # Custom domain not used — URLs go through S3 endpoint directly
-    AWS_S3_CUSTOM_DOMAIN = None
-    AWS_MEDIA_CUSTOM_DOMAIN = None
+    # Parse external URL for static file custom domain
+    from urllib.parse import urlparse as _urlparse
+
+    _external_netloc = _urlparse(AWS_S3_EXTERNAL_URL).netloc
 
     STORAGES = {
         'default': {
@@ -189,12 +192,15 @@ if USE_S3_STORAGE:
                 'access_key': AWS_S3_ACCESS_KEY,
                 'secret_key': AWS_S3_SECRET_KEY,
                 'bucket_name': AWS_STORAGE_BUCKET_NAME,
+                # Generate browser-accessible URLs using external host (no presigned params)
+                'custom_domain': f'{_external_netloc}/{AWS_STORAGE_BUCKET_NAME}',
+                'url_protocol': 'http:',
             },
         },
     }
 
-    STATIC_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/'
-    MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_MEDIA_BUCKET_NAME}/'
+    STATIC_URL = f'{AWS_S3_EXTERNAL_URL}/{AWS_STORAGE_BUCKET_NAME}/'
+    MEDIA_URL = f'{AWS_S3_EXTERNAL_URL}/{AWS_MEDIA_BUCKET_NAME}/'
 else:
     # Local filesystem storage (default for host-based development)
     STATIC_URL = 'static/'

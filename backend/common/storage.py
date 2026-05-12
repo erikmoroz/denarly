@@ -42,6 +42,22 @@ class StorageService:
             settings.AWS_LOGS_BUCKET_NAME,
         ]
 
+    @staticmethod
+    def _get_url_client():
+        """Create an S3 client configured for generating browser-accessible presigned URLs.
+
+        Uses the external URL so generated URLs contain a hostname the browser can resolve.
+        This is safe because generate_presigned_url() is a purely local cryptographic
+        operation — no network call is made.
+        """
+        external_url = getattr(settings, 'AWS_S3_EXTERNAL_URL', settings.AWS_S3_ENDPOINT_URL)
+        return boto3.client(
+            's3',
+            endpoint_url=external_url,
+            aws_access_key_id=settings.AWS_S3_ACCESS_KEY,
+            aws_secret_access_key=settings.AWS_S3_SECRET_KEY,
+        )
+
     # --- Public methods ---
 
     @staticmethod
@@ -83,7 +99,7 @@ class StorageService:
         if not StorageService._is_enabled():
             return None
 
-        client = StorageService._get_client()
+        client = StorageService._get_url_client()
         try:
             return client.generate_presigned_url(
                 'get_object',

@@ -90,6 +90,7 @@ services:
       - S3_BUCKET_STATIC=denarly-static
       - S3_BUCKET_MEDIA=denarly-media
       - S3_BUCKET_LOGS=denarly-logs
+      - S3_EXTERNAL_URL=http://localhost:9000
     volumes:
       - ./backend:/app
       - backend_venv:/app/.venv
