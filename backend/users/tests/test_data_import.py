@@ -25,9 +25,9 @@ class DataImportTests(AuthMixin, TestCase):
     """Tests for GDPR data import service."""
 
     def test_import_rejects_incompatible_version(self):
-        """Import should reject exports with version 1.x."""
+        """Import should reject exports with truly incompatible versions."""
         export_data = {
-            'export_version': '1.0',
+            'export_version': '3.0',
             'workspaces': [],
         }
 
@@ -37,6 +37,17 @@ class DataImportTests(AuthMixin, TestCase):
             UserService.import_all_data(self.user, self._make_import_input(export_data))
 
         self.assertIn('Incompatible export version', str(ctx.exception.message))
+
+    def test_import_accepts_version_1_0(self):
+        """Import should accept v1.0 exports by normalizing them to v2.0."""
+        export_data = {
+            'export_version': '1.0',
+            'workspaces': [],
+        }
+
+        result = UserService.import_all_data(self.user, self._make_import_input(export_data))
+
+        self.assertEqual(result['imported_workspaces'], 0)
 
     def test_import_accepts_version_2_0(self):
         """Import should accept exports with version 2.0."""
