@@ -101,14 +101,14 @@ export default function BalanceBar({ balances, onEdit, onRecalculate }: Props) {
       <div className="hidden lg:block border border-border rounded-sm overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="bg-background h-8 border-b border-border">
-              <th className="px-3 py-1 text-left font-medium text-[10px] text-text-muted uppercase tracking-wider">Currency</th>
-              <th className="px-3 py-1 text-right font-medium text-[10px] text-text-muted uppercase tracking-wider">Opening</th>
-              <th className="px-3 py-1 text-right font-medium text-[10px] text-text-muted uppercase tracking-wider">Income</th>
-              <th className="px-3 py-1 text-right font-medium text-[10px] text-text-muted uppercase tracking-wider">Expenses</th>
-              <th className="px-3 py-1 text-right font-medium text-[10px] text-text-muted uppercase tracking-wider hidden lg:table-cell">Exch. In</th>
-              <th className="px-3 py-1 text-right font-medium text-[10px] text-text-muted uppercase tracking-wider hidden lg:table-cell">Exch. Out</th>
-              <th className="px-3 py-1 text-right font-medium text-[10px] text-text-muted uppercase tracking-wider border-l border-border">Closing</th>
+            <tr className="bg-background h-7 border-b border-border">
+              <th className="px-2 py-0.5 text-left font-medium text-[11px] text-text-muted uppercase tracking-wider">Currency</th>
+              <th className="px-2 py-0.5 text-right font-medium text-[11px] text-text-muted uppercase tracking-wider">Opening</th>
+              <th className="px-2 py-0.5 text-right font-medium text-[11px] text-text-muted uppercase tracking-wider">Income</th>
+              <th className="px-2 py-0.5 text-right font-medium text-[11px] text-text-muted uppercase tracking-wider">Expenses</th>
+              <th className="px-2 py-0.5 text-right font-medium text-[11px] text-text-muted uppercase tracking-wider hidden lg:table-cell">Exch. In</th>
+              <th className="px-2 py-0.5 text-right font-medium text-[11px] text-text-muted uppercase tracking-wider hidden lg:table-cell">Exch. Out</th>
+              <th className="px-2 py-0.5 text-right font-medium text-[11px] text-text-muted uppercase tracking-wider border-l border-border">Closing</th>
               <th className="sr-only">Actions</th>
             </tr>
           </thead>
@@ -125,30 +125,30 @@ export default function BalanceBar({ balances, onEdit, onRecalculate }: Props) {
               return (
                 <tr
                   key={balance.id}
-                  className={`bg-surface hover:bg-surface-hover transition-colors h-8 border-b border-border ${isLast ? 'border-b-0' : ''}`}
+                  className={`bg-surface hover:bg-surface-hover transition-colors h-7 border-b border-border ${isLast ? 'border-b-0' : ''}`}
                 >
-                  <td className="px-3 py-1 font-mono text-xs font-medium text-text text-left">
+                  <td className="px-2 py-0.5 font-mono text-sm font-medium text-text text-left">
                     {balance.currency}
                   </td>
-                  <td className={`px-3 py-1 font-mono text-xs font-medium text-right tabular-nums ${opening === 0 ? 'text-text-muted' : 'text-text'}`}>
+                  <td className={`px-2 py-0.5 font-mono text-sm font-medium text-right tabular-nums ${opening === 0 ? 'text-text-muted' : 'text-text'}`}>
                     {formatAmount(opening)}
                   </td>
-                  <td className={`px-3 py-1 font-mono text-xs font-medium text-right tabular-nums ${income === 0 ? 'text-text-muted' : 'text-positive'}`}>
+                  <td className={`px-2 py-0.5 font-mono text-sm font-medium text-right tabular-nums ${income === 0 ? 'text-text-muted' : 'text-positive'}`}>
                     +{formatAmount(income)}
                   </td>
-                  <td className={`px-3 py-1 font-mono text-xs font-medium text-right tabular-nums ${expenses === 0 ? 'text-text-muted' : 'text-negative'}`}>
+                  <td className={`px-2 py-0.5 font-mono text-sm font-medium text-right tabular-nums ${expenses === 0 ? 'text-text-muted' : 'text-negative'}`}>
                     -{formatAmount(expenses)}
                   </td>
-                  <td className={`px-3 py-1 font-mono text-xs font-medium text-right tabular-nums ${exchIn === 0 ? 'text-text-muted' : 'text-text'}`}>
+                  <td className={`px-2 py-0.5 font-mono text-sm font-medium text-right tabular-nums ${exchIn === 0 ? 'text-text-muted' : 'text-text'}`}>
                     {exchIn === 0 ? formatAmount(0) : `+${formatAmount(exchIn)}`}
                   </td>
-                  <td className={`px-3 py-1 font-mono text-xs font-medium text-right tabular-nums ${exchOut === 0 ? 'text-text-muted' : 'text-text'}`}>
+                  <td className={`px-2 py-0.5 font-mono text-sm font-medium text-right tabular-nums ${exchOut === 0 ? 'text-text-muted' : 'text-text'}`}>
                     {exchOut === 0 ? formatAmount(0) : `-${formatAmount(exchOut)}`}
                   </td>
-                  <td className={`px-3 py-1 font-mono text-sm font-medium text-right tabular-nums border-l border-border ${closingColorClass(closing)}`}>
+                  <td className={`px-2 py-0.5 font-mono text-base font-medium text-right tabular-nums border-l border-border ${closingColorClass(closing)}`}>
                     {formatAmount(closing)}
                   </td>
-                  <td className="px-3 py-1">
+                  <td className="px-2 py-0.5">
                     <div className="relative flex justify-end">
                       <ActionsMenu balance={balance} onEdit={onEdit} onRecalculate={onRecalculate} />
                     </div>
@@ -161,7 +161,7 @@ export default function BalanceBar({ balances, onEdit, onRecalculate }: Props) {
       </div>
 
       {/* Mobile stacked cards (<lg / 1024px) */}
-      <div className="lg:hidden space-y-3">
+      <div className="lg:hidden space-y-2">
         {balances.map((balance) => {
           const opening = Number(balance.opening_balance) || 0
           const income = Number(balance.total_income) || 0
@@ -173,11 +173,11 @@ export default function BalanceBar({ balances, onEdit, onRecalculate }: Props) {
           const exch = exchangeDisplay(netExch)
 
           return (
-            <div key={balance.id} className="bg-surface border border-border rounded-sm p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-mono text-xs font-medium text-text">{balance.currency}</span>
+            <div key={balance.id} className="bg-surface border border-border rounded-sm p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-mono text-sm font-medium text-text">{balance.currency}</span>
                 <div className="flex items-center gap-2">
-                  <span className={`font-mono text-sm font-medium tabular-nums ${closingColorClass(closing)}`}>
+                  <span className={`font-mono text-base font-medium tabular-nums ${closingColorClass(closing)}`}>
                     {formatAmount(closing)}
                   </span>
                   <div className="relative flex justify-end">
@@ -185,40 +185,40 @@ export default function BalanceBar({ balances, onEdit, onRecalculate }: Props) {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 <div>
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted mb-0.5">Opening</div>
-                  <div className={`font-mono text-xs font-medium tabular-nums ${opening === 0 ? 'text-text-muted' : 'text-text'}`}>
+                  <div className="font-mono text-[11px] uppercase tracking-wider text-text-muted mb-0.5">Opening</div>
+                  <div className={`font-mono text-sm font-medium tabular-nums ${opening === 0 ? 'text-text-muted' : 'text-text'}`}>
                     {formatAmount(opening)}
                   </div>
                 </div>
                 <div>
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted mb-0.5">Income</div>
-                  <div className={`font-mono text-xs font-medium tabular-nums ${income === 0 ? 'text-text-muted' : 'text-positive'}`}>
+                  <div className="font-mono text-[11px] uppercase tracking-wider text-text-muted mb-0.5">Income</div>
+                  <div className={`font-mono text-sm font-medium tabular-nums ${income === 0 ? 'text-text-muted' : 'text-positive'}`}>
                     +{formatAmount(income)}
                   </div>
                 </div>
                 <div>
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted mb-0.5">Expenses</div>
-                  <div className={`font-mono text-xs font-medium tabular-nums ${expenses === 0 ? 'text-text-muted' : 'text-negative'}`}>
+                  <div className="font-mono text-[11px] uppercase tracking-wider text-text-muted mb-0.5">Expenses</div>
+                  <div className={`font-mono text-sm font-medium tabular-nums ${expenses === 0 ? 'text-text-muted' : 'text-negative'}`}>
                     -{formatAmount(expenses)}
                   </div>
                 </div>
                 <div>
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted mb-0.5">Exch. In</div>
-                  <div className={`font-mono text-xs font-medium tabular-nums ${exchIn === 0 ? 'text-text-muted' : 'text-text'}`}>
+                  <div className="font-mono text-[11px] uppercase tracking-wider text-text-muted mb-0.5">Exch. In</div>
+                  <div className={`font-mono text-sm font-medium tabular-nums ${exchIn === 0 ? 'text-text-muted' : 'text-text'}`}>
                     {exchIn === 0 ? formatAmount(0) : `+${formatAmount(exchIn)}`}
                   </div>
                 </div>
                 <div>
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted mb-0.5">Exch. Out</div>
-                  <div className={`font-mono text-xs font-medium tabular-nums ${exchOut === 0 ? 'text-text-muted' : 'text-text'}`}>
+                  <div className="font-mono text-[11px] uppercase tracking-wider text-text-muted mb-0.5">Exch. Out</div>
+                  <div className={`font-mono text-sm font-medium tabular-nums ${exchOut === 0 ? 'text-text-muted' : 'text-text'}`}>
                     {exchOut === 0 ? formatAmount(0) : `-${formatAmount(exchOut)}`}
                   </div>
                 </div>
                 <div>
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-text-muted mb-0.5">Net Exch.</div>
-                  <div className={`font-mono text-xs font-medium tabular-nums ${exch.color}`}>
+                  <div className="font-mono text-[11px] uppercase tracking-wider text-text-muted mb-0.5">Net Exch.</div>
+                  <div className={`font-mono text-sm font-medium tabular-nums ${exch.color}`}>
                     {exch.text}
                   </div>
                 </div>
