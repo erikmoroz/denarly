@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { periodBalancesApi } from '../../api/client'
 import type { PeriodBalance } from '../../types'
-import BalanceCard from './BalanceCard'
+import BalanceBar from './BalanceBar'
 import EditPeriodBalanceModal from '../modals/balance/EditPeriodBalanceModal'
 
 interface Props {
@@ -46,16 +46,11 @@ export default function BalanceSection({ periodId }: Props) {
     <div className="mb-12">
       <h2 className="text-sm font-medium text-text mb-8">Balances</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {balances?.map(balance => (
-          <BalanceCard
-            key={balance.id}
-            balance={balance}
-            onEdit={() => handleEdit(balance)}
-            onRecalculate={() => recalculateMutation.mutate({ currency: balance.currency })}
-          />
-        ))}
-      </div>
+      <BalanceBar
+        balances={balances || []}
+        onEdit={handleEdit}
+        onRecalculate={(currency) => recalculateMutation.mutate({ currency })}
+      />
 
       {balances?.length === 0 && (
         <p className="text-text-muted">No balances yet. Add some transactions!</p>
