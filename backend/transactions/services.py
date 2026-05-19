@@ -336,7 +336,8 @@ class TransactionService:
 
         The `description` field uses the most common original casing for each group.
         """
-        from django.db.models import Count, Lower
+        from django.db.models import Count
+        from django.db.models.functions import Lower
 
         queryset = TransactionService._build_filtered_queryset(
             workspace_id=workspace_id,
