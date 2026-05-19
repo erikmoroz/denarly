@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { periodBalancesApi } from '../../api/client'
 import type { PeriodBalance } from '../../types'
 import BalanceBar from './BalanceBar'
+import BalanceDetailModal from '../modals/balance/BalanceDetailModal'
 import EditPeriodBalanceModal from '../modals/balance/EditPeriodBalanceModal'
 
 interface Props {
@@ -12,8 +13,10 @@ interface Props {
 
 export default function BalanceSection({ periodId }: Props) {
   const queryClient = useQueryClient()
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [detailBalance, setDetailBalance] = useState<PeriodBalance | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [selectedBalance, setSelectedBalance] = useState<PeriodBalance | null>(null)
+  const [editBalance, setEditBalance] = useState<PeriodBalance | null>(null)
 
   const { data: balances, isLoading } = useQuery({
     queryKey: ['period-balances', periodId],
@@ -35,8 +38,13 @@ export default function BalanceSection({ periodId }: Props) {
     }
   })
 
-  const handleEdit = (balance: PeriodBalance) => {
-    setSelectedBalance(balance)
+  const handleSelectBalance = (balance: PeriodBalance) => {
+    setDetailBalance(balance)
+    setIsDetailModalOpen(true)
+  }
+
+  const handleEditFromDetail = (balance: PeriodBalance) => {
+    setEditBalance(balance)
     setIsEditModalOpen(true)
   }
 
@@ -48,21 +56,31 @@ export default function BalanceSection({ periodId }: Props) {
 
       <BalanceBar
         balances={balances || []}
-        onEdit={handleEdit}
-        onRecalculate={(currency) => recalculateMutation.mutate({ currency })}
+        onSelect={handleSelectBalance}
       />
 
       {balances?.length === 0 && (
         <p className="text-text-muted">No balances yet. Add some transactions!</p>
       )}
 
+      <BalanceDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false)
+          setDetailBalance(null)
+        }}
+        balance={detailBalance}
+        onEdit={handleEditFromDetail}
+        onRecalculate={(currency) => recalculateMutation.mutate({ currency })}
+      />
+
       <EditPeriodBalanceModal
         isOpen={isEditModalOpen}
         onClose={() => {
           setIsEditModalOpen(false)
-          setSelectedBalance(null)
+          setEditBalance(null)
         }}
-        balance={selectedBalance}
+        balance={editBalance}
       />
     </div>
   )
