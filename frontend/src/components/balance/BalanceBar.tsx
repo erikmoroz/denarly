@@ -22,27 +22,53 @@ export default function BalanceBar({ balances, onSelect }: Props) {
   if (balances.length === 0) return null
 
   return (
-    <div className="border border-border rounded-sm overflow-hidden">
-      {balances.map((balance, index) => {
-        const closing = Number(balance.closing_balance) || 0
-        const isLast = index === balances.length - 1
+    <>
+      {/* Mobile: list layout (<lg) */}
+      <div className="lg:hidden border border-border rounded-sm overflow-hidden">
+        {balances.map((balance, index) => {
+          const closing = Number(balance.closing_balance) || 0
+          const isLast = index === balances.length - 1
 
-        return (
-          <button
-            key={balance.id}
-            type="button"
-            onClick={() => onSelect(balance)}
-            className={`w-full flex items-center justify-between h-10 px-4 bg-surface hover:bg-surface-hover transition-colors cursor-pointer text-left ${isLast ? '' : 'border-b border-border'}`}
-          >
-            <span className="font-mono text-sm font-medium text-text">
-              {balance.currency}
-            </span>
-            <span className={`font-mono text-base font-medium tabular-nums ${closingColorClass(closing)}`}>
-              {formatAmount(closing)}
-            </span>
-          </button>
-        )
-      })}
-    </div>
+          return (
+            <button
+              key={balance.id}
+              type="button"
+              onClick={() => onSelect(balance)}
+              className={`w-full flex items-center justify-between h-10 px-4 bg-surface hover:bg-surface-hover transition-colors cursor-pointer text-left ${isLast ? '' : 'border-b border-border'}`}
+            >
+              <span className="font-mono text-sm font-medium text-text">
+                {balance.currency}
+              </span>
+              <span className={`font-mono text-base font-medium tabular-nums ${closingColorClass(closing)}`}>
+                {formatAmount(closing)}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Desktop: horizontal card row (≥lg) */}
+      <div className="hidden lg:flex flex-wrap gap-3">
+        {balances.map((balance) => {
+          const closing = Number(balance.closing_balance) || 0
+
+          return (
+            <button
+              key={balance.id}
+              type="button"
+              onClick={() => onSelect(balance)}
+              className="border border-border rounded-sm bg-surface hover:bg-surface-hover transition-colors cursor-pointer text-left p-4 min-w-[140px]"
+            >
+              <div className="font-mono text-sm font-medium text-text mb-1">
+                {balance.currency}
+              </div>
+              <div className={`font-mono text-base font-medium tabular-nums ${closingColorClass(closing)}`}>
+                {formatAmount(closing)}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </>
   )
 }
