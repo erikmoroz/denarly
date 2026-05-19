@@ -23,8 +23,8 @@ export default function BalanceBar({ balances, onSelect }: Props) {
 
   return (
     <>
-      {/* Mobile: list layout (<lg) */}
-      <div className="lg:hidden border border-border rounded-sm overflow-hidden">
+      {/* Mobile: list layout (<md) */}
+      <div className="md:hidden border border-border rounded-sm overflow-hidden">
         {balances.map((balance, index) => {
           const closing = Number(balance.closing_balance) || 0
           const isLast = index === balances.length - 1
@@ -47,8 +47,8 @@ export default function BalanceBar({ balances, onSelect }: Props) {
         })}
       </div>
 
-      {/* Desktop: horizontal card row (≥lg) */}
-      <div className="hidden lg:flex flex-wrap gap-3">
+      {/* Desktop: horizontal card row (≥md) */}
+      <div className="hidden md:flex flex-wrap gap-3">
         {balances.map((balance) => {
           const closing = Number(balance.closing_balance) || 0
 
