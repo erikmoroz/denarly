@@ -18,6 +18,12 @@ function closingColorClass(value: number): string {
   return 'text-text-muted'
 }
 
+function closingBorderClass(value: number): string {
+  if (value > 0) return 'border-t-positive'
+  if (value < 0) return 'border-t-negative'
+  return 'border-t-border'
+}
+
 export default function BalanceBar({ balances, onSelect }: Props) {
   if (balances.length === 0) return null
 
@@ -57,12 +63,12 @@ export default function BalanceBar({ balances, onSelect }: Props) {
               key={balance.id}
               type="button"
               onClick={() => onSelect(balance)}
-              className="border border-border rounded-sm bg-surface hover:bg-surface-hover transition-colors cursor-pointer text-left p-4 min-w-[140px]"
+              className={`border border-border border-t-2 rounded-sm bg-surface hover:bg-surface-hover transition-colors cursor-pointer text-center p-4 min-w-[140px] ${closingBorderClass(closing)}`}
             >
-              <div className="font-mono text-sm font-medium text-text mb-1">
+              <div className="font-mono text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
                 {balance.currency}
               </div>
-              <div className={`font-mono text-base font-medium tabular-nums ${closingColorClass(closing)}`}>
+              <div className={`font-mono text-lg font-medium tabular-nums ${closingColorClass(closing)}`}>
                 {formatAmount(closing)}
               </div>
             </button>
