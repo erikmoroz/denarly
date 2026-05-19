@@ -50,7 +50,7 @@ export default function EditPeriodBalanceModal({ isOpen, onClose, balance }: Pro
     if (!isNaN(parsedBalance)) {
       payload.opening_balance = parsedBalance
     }
-    payload.note = note || undefined
+    payload.note = note
     updateMutation.mutate(payload)
   }
 
