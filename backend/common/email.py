@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 class EmailService:
     @staticmethod
-    def send_email(
-        to: str | list[str],
+    def _send_sync(
+        to: list[str],
         subject: str,
         template_name: str,
         context: dict | None = None,
@@ -27,7 +27,7 @@ class EmailService:
                 subject=subject,
                 body=text_content,
                 from_email=from_email or settings.DEFAULT_FROM_EMAIL,
-                to=to if isinstance(to, list) else [to],
+                to=to,
             )
             msg.attach_alternative(html_content, 'text/html')
             msg.send(fail_silently=False)
@@ -35,3 +35,24 @@ class EmailService:
         except Exception:
             logger.exception('Failed to send email "%s" to %s', subject, to)
             return False
+
+    @staticmethod
+    def send_email(
+        to: str | list[str],
+        subject: str,
+        template_name: str,
+        context: dict | None = None,
+        from_email: str | None = None,
+    ) -> bool:
+        from common.tasks import send_email_task
+
+        recipient_list = to if isinstance(to, list) else [to]
+
+        send_email_task.delay(
+            to=recipient_list,
+            subject=subject,
+            template_name=template_name,
+            context=context,
+            from_email=from_email,
+        )
+        return True
