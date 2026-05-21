@@ -8,7 +8,7 @@ from django.db import transaction as db_transaction
 from budget_periods.models import BudgetPeriod
 from planned_transactions.exceptions import PlannedTransactionNoActivePeriodError
 from planned_transactions.models import PlannedTransaction
-from transactions.models import Transaction
+from transactions.schemas import TransactionCreate
 from transactions.services import TransactionService
 
 logger = logging.getLogger(__name__)
@@ -66,20 +66,19 @@ def execute_planned_transaction(self, planned_id: int) -> None:
             # Raise to trigger Celery retry — period may be created between retries
             raise PlannedTransactionNoActivePeriodError()
 
-        transaction_obj = Transaction.objects.create(
-            workspace_id=planned.workspace_id,
-            budget_period_id=period.id,
-            date=payment_date,
-            description=planned.name,
-            category_id=planned.category_id,
-            amount=planned.amount,
-            currency=planned.currency,
-            type='expense',
-            created_by=planned.created_by,
-            updated_by=planned.updated_by,
+        transaction_obj = TransactionService.create(
+            planned.created_by,
+            planned.workspace_id,
+            TransactionCreate(
+                date=payment_date,
+                description=planned.name,
+                category_id=planned.category_id,
+                amount=planned.amount,
+                currency=planned.currency.symbol,
+                type='expense',
+                budget_period_id=period.id,
+            ),
         )
-
-        TransactionService.update_period_balance(period.id, planned.currency, 'expense', planned.amount, 'add')
 
         planned.transaction_id = transaction_obj.id
         planned.save(update_fields=['transaction_id'])
