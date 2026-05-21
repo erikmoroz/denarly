@@ -5,6 +5,12 @@ import logging
 from celery import shared_task
 from django.db import transaction as db_transaction
 
+from budget_periods.models import BudgetPeriod
+from planned_transactions.exceptions import PlannedTransactionNoActivePeriodError
+from planned_transactions.models import PlannedTransaction
+from transactions.models import Transaction
+from transactions.services import TransactionService
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,11 +22,6 @@ def execute_planned_transaction(self, planned_id: int) -> None:
     the task skips execution — this prevents duplicate Transactions if the task
     is retried after a partial failure.
     """
-    from common.services.base import get_or_create_period_balance
-    from planned_transactions.exceptions import PlannedTransactionNoActivePeriodError
-    from planned_transactions.models import PlannedTransaction
-    from transactions.models import Transaction
-
     planned = PlannedTransaction.objects.select_related('currency', 'category').filter(id=planned_id).first()
     if not planned:
         logger.warning('PlannedTransaction %s not found, skipping.', planned_id)
@@ -52,8 +53,6 @@ def execute_planned_transaction(self, planned_id: int) -> None:
             return
 
         # Find the budget period covering the payment date
-        from budget_periods.models import BudgetPeriod
-
         period = (
             BudgetPeriod.objects.select_related('budget_account')
             .filter(
@@ -80,10 +79,7 @@ def execute_planned_transaction(self, planned_id: int) -> None:
             updated_by=planned.updated_by,
         )
 
-        balance = get_or_create_period_balance(period.id, planned.currency)
-        balance.total_expenses += planned.amount
-        balance.recalculate_closing_balance()
-        balance.save(update_fields=['total_expenses', 'closing_balance'])
+        TransactionService.update_period_balance(period.id, planned.currency, 'expense', planned.amount, 'add')
 
         planned.transaction_id = transaction_obj.id
         planned.save(update_fields=['transaction_id'])
