@@ -132,6 +132,23 @@ class TestEmailServiceDispatch(TestCase):
 
         self.assertTrue(result)
 
+    @patch('common.tasks.send_email_task.delay')
+    def test_send_email_falls_back_to_sync_when_celery_unavailable(self, mock_delay):
+        mock_delay.side_effect = Exception('Celery connection error')
+
+        result = EmailService.send_email(
+            to='user@example.com',
+            subject='Welcome',
+            template_name='email/welcome',
+            context={'user_name': 'Alice'},
+        )
+
+        self.assertTrue(result)
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertEqual(email.to, ['user@example.com'])
+        self.assertEqual(email.subject, 'Welcome')
+
 
 class TestSendEmailTaskRetryConfig(TestCase):
     """Tests for send_email_task retry configuration."""

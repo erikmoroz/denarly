@@ -48,11 +48,25 @@ class EmailService:
 
         recipient_list = to if isinstance(to, list) else [to]
 
-        send_email_task.delay(
-            to=recipient_list,
-            subject=subject,
-            template_name=template_name,
-            context=context,
-            from_email=from_email,
-        )
+        try:
+            send_email_task.delay(
+                to=recipient_list,
+                subject=subject,
+                template_name=template_name,
+                context=context,
+                from_email=from_email,
+            )
+        except Exception:
+            logger.exception(
+                'Failed to dispatch Celery email task "%s" to %s, falling back to sync',
+                subject,
+                recipient_list,
+            )
+            return EmailService._send_sync(
+                to=recipient_list,
+                subject=subject,
+                template_name=template_name,
+                context=context,
+                from_email=from_email,
+            )
         return True
