@@ -82,13 +82,7 @@ def execute_planned_transaction(self, planned_id: int) -> None:
 
         balance = get_or_create_period_balance(period.id, planned.currency)
         balance.total_expenses += planned.amount
-        balance.closing_balance = (
-            balance.opening_balance
-            + balance.total_income
-            - balance.total_expenses
-            + balance.exchanges_in
-            - balance.exchanges_out
-        )
+        balance.recalculate_closing_balance()
         balance.save(update_fields=['total_expenses', 'closing_balance'])
 
         planned.transaction_id = transaction_obj.id
