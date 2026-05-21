@@ -25,6 +25,7 @@ from planned_transactions.exceptions import (
 )
 from planned_transactions.models import PlannedTransaction
 from planned_transactions.schemas import PlannedTransactionCreate, PlannedTransactionImport, PlannedTransactionUpdate
+from planned_transactions.tasks import execute_planned_transaction
 
 
 class PlannedTransactionService:
@@ -91,13 +92,6 @@ class PlannedTransactionService:
         if end_date:
             queryset = queryset.filter(planned_date__lte=end_date)
         return queryset
-
-    @staticmethod
-    def _dispatch_execution_task(planned_id: int) -> None:
-        """Dispatch the Celery task to create a Transaction for an executed planned transaction."""
-        from planned_transactions.tasks import execute_planned_transaction
-
-        execute_planned_transaction.delay(planned_id)
 
     @staticmethod
     def list(
@@ -171,22 +165,21 @@ class PlannedTransactionService:
         PlannedTransactionService._validate_category(data.category_id, period_id)
 
         if data.status == 'done':
-            planned = PlannedTransaction(
-                workspace_id=workspace_id,
-                budget_period_id=period_id,
-                name=data.name,
-                amount=data.amount,
-                currency=currency,
-                category_id=data.category_id,
-                planned_date=data.planned_date,
-                status='done',
-                payment_date=data.planned_date,
-                created_by=user,
-                updated_by=user,
-            )
             with db_transaction.atomic():
-                planned.save()
-            PlannedTransactionService._dispatch_execution_task(planned.id)
+                planned = PlannedTransaction.objects.create(
+                    workspace_id=workspace_id,
+                    budget_period_id=period_id,
+                    name=data.name,
+                    amount=data.amount,
+                    currency=currency,
+                    category_id=data.category_id,
+                    planned_date=data.planned_date,
+                    status='done',
+                    payment_date=data.planned_date,
+                    created_by=user,
+                    updated_by=user,
+                )
+            execute_planned_transaction.delay(planned.id)
             planned.refresh_from_db()
             return planned
 
@@ -232,7 +225,7 @@ class PlannedTransactionService:
             planned.payment_date = planned.planned_date
             with db_transaction.atomic():
                 planned.save()
-            PlannedTransactionService._dispatch_execution_task(planned.id)
+            execute_planned_transaction.delay(planned.id)
             planned.refresh_from_db()
             return planned
 
@@ -272,7 +265,7 @@ class PlannedTransactionService:
         planned.updated_by = user
         with db_transaction.atomic():
             planned.save()
-        PlannedTransactionService._dispatch_execution_task(planned.id)
+        execute_planned_transaction.delay(planned.id)
         planned.refresh_from_db()
         return planned
 
