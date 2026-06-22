@@ -198,7 +198,7 @@ export const currenciesApi = {
 };
 
 export const currencyExchangesApi = {
-  getAll: (params?: { budget_period_id?: number; page?: number; page_size?: number }) => api.get('/currency-exchanges', { params }),
+  getAll: (params?: { budget_period_id?: number; page?: number; page_size?: number; ordering?: '-date' | 'date' | '-description' | 'description' | '-from_amount' | 'from_amount' | '-to_amount' | 'to_amount' | '-exchange_rate' | 'exchange_rate' }) => api.get('/currency-exchanges', { params }),
   getTotals: (params?: { budget_period_id?: number }): Promise<CurrencyExchangeTotalsResponse> =>
     api.get<CurrencyExchangeTotalsResponse>('/currency-exchanges/totals', { params }).then(res => res.data),
   create: (data: { date: string; description?: string; from_currency: string; from_amount: number; to_currency: string; to_amount: number }) => api.post('/currency-exchanges', data),
