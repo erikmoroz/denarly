@@ -25,7 +25,7 @@ export default function SortableTh({
 
   const buttonAlign =
     align === 'right'
-      ? 'flex flex-row-reverse'
+      ? 'flex justify-end'
       : align === 'center'
         ? 'flex justify-center'
         : 'flex'
