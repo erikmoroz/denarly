@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { X, ChevronDown, Filter } from 'lucide-react'
 import { transactionsApi, categoriesApi, currenciesApi } from '../api/client'
+import type { TransactionOrdering } from '../api/client'
 import type { Transaction, Category, Currency, PaginatedResponse } from '../types'
 import { useBudgetPeriod } from '../contexts/BudgetPeriodContext'
 import { usePermissions } from '../hooks/usePermissions'
@@ -208,7 +209,7 @@ export default function Transactions() {
         currency: appliedCurrencies.length > 0 ? appliedCurrencies : undefined,
         amount_gte: appliedAmountMin ? parseFloat(appliedAmountMin) : undefined,
         amount_lte: appliedAmountMax ? parseFloat(appliedAmountMax) : undefined,
-        ordering: ordering as '-date' | 'date' | '-description' | 'description' | '-amount' | 'amount' | '-type' | 'type' | '-category__name' | 'category__name' | '-currency__symbol' | 'currency__symbol',
+        ordering: ordering as TransactionOrdering,
         page,
         page_size: pageSize,
       })

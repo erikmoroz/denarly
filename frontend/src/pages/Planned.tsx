@@ -5,6 +5,7 @@ import { Filter } from 'lucide-react'
 import { useBudgetPeriod } from '../contexts/BudgetPeriodContext'
 import { usePermissions } from '../hooks/usePermissions'
 import { plannedTransactionsApi, currenciesApi } from '../api/client'
+import type { PlannedTransactionOrdering } from '../api/client'
 import type { PaginatedResponse, PlannedTransaction, Currency } from '../types'
 import PlannedTransactionList from '../components/transactions/PlannedTransactionList'
 import PlannedTransactionFormModal from '../components/modals/transactions/PlannedTransactionFormModal'
@@ -80,7 +81,7 @@ export default function Planned() {
         currency: selectedCurrencies.length > 0 ? selectedCurrencies : undefined,
         page,
         page_size: pageSize,
-        ordering: ordering as '-name' | 'name' | '-amount' | 'amount' | '-status' | 'status' | '-planned_date' | 'planned_date' | '-category__name' | 'category__name' | '-currency__symbol' | 'currency__symbol',
+        ordering: ordering as PlannedTransactionOrdering,
       })
       return response.data as PaginatedResponse<PlannedTransaction>
     },

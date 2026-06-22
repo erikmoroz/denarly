@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Settings } from 'lucide-react'
 import { currencyExchangesApi, exchangeShortcutsApi } from '../api/client'
+import type { CurrencyExchangeOrdering } from '../api/client'
 import { usePermissions } from '../hooks/usePermissions'
 import { useBudgetPeriod } from '../contexts/BudgetPeriodContext'
 import type { CurrencyExchange, ExchangeShortcut, PaginatedResponse } from '../types'
@@ -55,7 +56,7 @@ export default function CurrencyExchangesPage() {
         budget_period_id: selectedPeriodId,
         page,
         page_size: pageSize,
-        ordering: ordering as '-date' | 'date' | '-description' | 'description' | '-from_amount' | 'from_amount' | '-to_amount' | 'to_amount' | '-exchange_rate' | 'exchange_rate',
+        ordering: ordering as CurrencyExchangeOrdering,
       })
       return response.data as PaginatedResponse<CurrencyExchange>
     },
