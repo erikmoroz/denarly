@@ -27,12 +27,23 @@ export default function Planned() {
   const currencyDropdownRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [ordering, setOrdering] = useState<string>('planned_date')
+
+  const handleSort = (field: string) => {
+    setOrdering(prev => {
+      const current = prev.replace(/^-/, '')
+      if (current === field) return prev.startsWith('-') ? field : '-' + field
+      const defaultDesc = field === 'planned_date'
+      return defaultDesc ? '-' + field : field
+    })
+  }
+
   const { selectedPeriodId } = useBudgetPeriod()
   const { canManageBudgetData } = usePermissions()
 
   useEffect(() => {
     setPage(1)
-  }, [statusFilter, selectedPeriodId, selectedCurrencies])
+  }, [statusFilter, selectedPeriodId, selectedCurrencies, ordering])
 
   const { data: currencies } = useQuery({
     queryKey: ['currencies'],
@@ -61,7 +72,7 @@ export default function Planned() {
   }
 
   const { data: apiResponse, isLoading, error } = useQuery({
-    queryKey: ['planned-transactions', statusFilter, selectedPeriodId, selectedCurrencies, page, pageSize],
+    queryKey: ['planned-transactions', statusFilter, selectedPeriodId, selectedCurrencies, page, pageSize, ordering],
     queryFn: async () => {
       const response = await plannedTransactionsApi.getAll({
         status: statusFilter || undefined,
@@ -69,6 +80,7 @@ export default function Planned() {
         currency: selectedCurrencies.length > 0 ? selectedCurrencies : undefined,
         page,
         page_size: pageSize,
+        ordering: ordering as '-name' | 'name' | '-amount' | 'amount' | '-status' | 'status' | '-planned_date' | 'planned_date' | '-category__name' | 'category__name' | '-currency__symbol' | 'currency__symbol',
       })
       return response.data as PaginatedResponse<PlannedTransaction>
     },
@@ -343,6 +355,8 @@ export default function Planned() {
         <>
           <PlannedTransactionList
             transactions={planned}
+            ordering={ordering}
+            onSort={handleSort}
             onEdit={canManageBudgetData ? handleEdit : undefined}
             onExecute={canManageBudgetData ? handleExecute : undefined}
             onCancel={canManageBudgetData ? handleCancel : undefined}

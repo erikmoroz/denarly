@@ -221,7 +221,7 @@ export const exchangeShortcutsApi = {
 };
 
 export const plannedTransactionsApi = {
-  getAll: (params?: { status?: string; budget_period_id?: number; currency?: string[]; start_date?: string; end_date?: string; page?: number; page_size?: number }) => api.get('/planned-transactions', { params }),
+  getAll: (params?: { status?: string; budget_period_id?: number; currency?: string[]; start_date?: string; end_date?: string; page?: number; page_size?: number; ordering?: '-name' | 'name' | '-amount' | 'amount' | '-status' | 'status' | '-planned_date' | 'planned_date' | '-category__name' | 'category__name' | '-currency__symbol' | 'currency__symbol' }) => api.get('/planned-transactions', { params }),
   getTotals: (params?: { status?: string; budget_period_id?: number; currency?: string[]; group_by?: 'currency' | 'category' }): Promise<PlannedTransactionTotalsResponse> =>
     api.get<PlannedTransactionTotalsResponse>('/planned-transactions/totals', { params }).then(res => res.data),
   create: (data: { budget_period_id?: number; name: string; amount: number; currency: string; category_id?: number | null; planned_date: string; status?: 'pending' | 'done' | 'cancelled' }) => api.post('/planned-transactions', data),
