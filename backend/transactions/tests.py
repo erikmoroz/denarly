@@ -242,9 +242,8 @@ class TestListTransactions(TransactionsTestCase):
 
     def test_list_transactions_order_by_date(self):
         """Test ordering transactions by date ascending and descending."""
-        Transaction.objects.create(
+        TransactionFactory(
             budget_period=self.period,
-            workspace_id=self.workspace.id,
             date=date(2025, 1, 20),
             description='Late',
             category=self.category1,
@@ -252,10 +251,10 @@ class TestListTransactions(TransactionsTestCase):
             currency=self.pln_currency,
             type='expense',
             created_by=self.user,
+            updated_by=self.user,
         )
-        Transaction.objects.create(
+        TransactionFactory(
             budget_period=self.period,
-            workspace_id=self.workspace.id,
             date=date(2025, 1, 10),
             description='Early',
             category=self.category1,
@@ -263,6 +262,7 @@ class TestListTransactions(TransactionsTestCase):
             currency=self.pln_currency,
             type='expense',
             created_by=self.user,
+            updated_by=self.user,
         )
         data = self.get(f'/api/transactions?budget_period_id={self.period.id}&ordering=date', **self.auth_headers())
         self.assertStatus(200)
@@ -274,9 +274,8 @@ class TestListTransactions(TransactionsTestCase):
     def test_list_transactions_order_by_description(self):
         """Test ordering transactions by description ascending and descending."""
         for desc in ['Zebra', 'Apple', 'Mango']:
-            Transaction.objects.create(
+            TransactionFactory(
                 budget_period=self.period,
-                workspace_id=self.workspace.id,
                 date=date(2025, 1, 15),
                 description=desc,
                 category=self.category1,
@@ -284,6 +283,7 @@ class TestListTransactions(TransactionsTestCase):
                 currency=self.pln_currency,
                 type='expense',
                 created_by=self.user,
+                updated_by=self.user,
             )
         data = self.get(
             f'/api/transactions?budget_period_id={self.period.id}&ordering=description', **self.auth_headers()
@@ -299,9 +299,8 @@ class TestListTransactions(TransactionsTestCase):
     def test_list_transactions_order_by_amount(self):
         """Test ordering transactions by amount ascending and descending."""
         for amt in ['300.00', '100.00', '200.00']:
-            Transaction.objects.create(
+            TransactionFactory(
                 budget_period=self.period,
-                workspace_id=self.workspace.id,
                 date=date(2025, 1, 15),
                 description=f'Transaction {amt}',
                 category=self.category1,
@@ -309,6 +308,7 @@ class TestListTransactions(TransactionsTestCase):
                 currency=self.pln_currency,
                 type='expense',
                 created_by=self.user,
+                updated_by=self.user,
             )
         data = self.get(f'/api/transactions?budget_period_id={self.period.id}&ordering=amount', **self.auth_headers())
         self.assertStatus(200)
@@ -319,9 +319,8 @@ class TestListTransactions(TransactionsTestCase):
 
     def test_list_transactions_order_by_type(self):
         """Test ordering transactions by type ascending and descending."""
-        Transaction.objects.create(
+        TransactionFactory(
             budget_period=self.period,
-            workspace_id=self.workspace.id,
             date=date(2025, 1, 15),
             description='Expense item',
             category=self.category1,
@@ -329,10 +328,10 @@ class TestListTransactions(TransactionsTestCase):
             currency=self.pln_currency,
             type='expense',
             created_by=self.user,
+            updated_by=self.user,
         )
-        Transaction.objects.create(
+        TransactionFactory(
             budget_period=self.period,
-            workspace_id=self.workspace.id,
             date=date(2025, 1, 15),
             description='Income item',
             category=None,
@@ -340,6 +339,7 @@ class TestListTransactions(TransactionsTestCase):
             currency=self.pln_currency,
             type='income',
             created_by=self.user,
+            updated_by=self.user,
         )
         # 'expense' sorts before 'income' alphabetically
         data = self.get(f'/api/transactions?budget_period_id={self.period.id}&ordering=type', **self.auth_headers())
@@ -352,9 +352,8 @@ class TestListTransactions(TransactionsTestCase):
     def test_list_transactions_order_by_category_name(self):
         """Test ordering transactions by category name via FK traversal."""
         # self.category2 = 'Transport' (T), self.category1 = 'Groceries' (G)
-        Transaction.objects.create(
+        TransactionFactory(
             budget_period=self.period,
-            workspace_id=self.workspace.id,
             date=date(2025, 1, 15),
             description='Bus',
             category=self.category2,
@@ -362,10 +361,10 @@ class TestListTransactions(TransactionsTestCase):
             currency=self.pln_currency,
             type='expense',
             created_by=self.user,
+            updated_by=self.user,
         )
-        Transaction.objects.create(
+        TransactionFactory(
             budget_period=self.period,
-            workspace_id=self.workspace.id,
             date=date(2025, 1, 15),
             description='Food',
             category=self.category1,
@@ -373,6 +372,7 @@ class TestListTransactions(TransactionsTestCase):
             currency=self.pln_currency,
             type='expense',
             created_by=self.user,
+            updated_by=self.user,
         )
         # 'Groceries' < 'Transport' alphabetically
         data = self.get(
@@ -388,9 +388,8 @@ class TestListTransactions(TransactionsTestCase):
 
     def test_list_transactions_order_by_currency_symbol(self):
         """Test ordering transactions by currency symbol via FK traversal."""
-        Transaction.objects.create(
+        TransactionFactory(
             budget_period=self.period,
-            workspace_id=self.workspace.id,
             date=date(2025, 1, 15),
             description='USD item',
             category=self.category1,
@@ -398,10 +397,10 @@ class TestListTransactions(TransactionsTestCase):
             currency=self.usd_currency,
             type='expense',
             created_by=self.user,
+            updated_by=self.user,
         )
-        Transaction.objects.create(
+        TransactionFactory(
             budget_period=self.period,
-            workspace_id=self.workspace.id,
             date=date(2025, 1, 15),
             description='PLN item',
             category=self.category1,
@@ -409,6 +408,7 @@ class TestListTransactions(TransactionsTestCase):
             currency=self.pln_currency,
             type='expense',
             created_by=self.user,
+            updated_by=self.user,
         )
         # 'PLN' < 'USD' alphabetically
         data = self.get(
@@ -424,9 +424,8 @@ class TestListTransactions(TransactionsTestCase):
 
     def test_list_transactions_invalid_ordering_rejected(self):
         """Test that an ordering value not in the allowlist is rejected (422)."""
-        Transaction.objects.create(
+        TransactionFactory(
             budget_period=self.period,
-            workspace_id=self.workspace.id,
             date=date(2025, 1, 15),
             description='Test',
             category=self.category1,
@@ -434,6 +433,7 @@ class TestListTransactions(TransactionsTestCase):
             currency=self.pln_currency,
             type='expense',
             created_by=self.user,
+            updated_by=self.user,
         )
         self.get(f'/api/transactions?budget_period_id={self.period.id}&ordering=invalid_field', **self.auth_headers())
         # Django Ninja returns 422 for Query param pattern mismatches.
