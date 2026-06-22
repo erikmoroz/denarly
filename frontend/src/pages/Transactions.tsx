@@ -19,7 +19,7 @@ export default function Transactions() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [dateOrdering, setDateOrdering] = useState<'date' | '-date'>('-date')
+  const [ordering, setOrdering] = useState<string>('-date')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Applied filters (used in actual query)
@@ -50,6 +50,15 @@ export default function Transactions() {
   const typeDropdownRef = useRef<HTMLDivElement>(null)
   const categoryDropdownRef = useRef<HTMLDivElement>(null)
   const currencyDropdownRef = useRef<HTMLDivElement>(null)
+
+  const handleSort = (field: string) => {
+    setOrdering(prev => {
+      const current = prev.replace(/^-/, '')
+      if (current === field) return prev.startsWith('-') ? field : '-' + field   // toggle active
+      const defaultDesc = field === 'date'                                         // date-type → descending
+      return defaultDesc ? '-' + field : field
+    })
+  }
 
   const transactionTypes = [
     { value: 'income', label: 'Income' },
@@ -165,7 +174,7 @@ export default function Transactions() {
   // Reset page when search or ordering changes
   useEffect(() => {
     setPage(1)
-  }, [searchQuery, dateOrdering])
+  }, [searchQuery, ordering])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -186,7 +195,7 @@ export default function Transactions() {
   }, [])
 
   const { data: apiResponse, isLoading, error } = useQuery({
-    queryKey: ['transactions', selectedPeriodId, searchQuery, appliedStartDate, appliedEndDate, appliedTypes, appliedCategories, appliedCurrencies, appliedAmountMin, appliedAmountMax, dateOrdering, page, pageSize],
+    queryKey: ['transactions', selectedPeriodId, searchQuery, appliedStartDate, appliedEndDate, appliedTypes, appliedCategories, appliedCurrencies, appliedAmountMin, appliedAmountMax, ordering, page, pageSize],
     queryFn: async () => {
       if (!selectedPeriodId) return null
       const response = await transactionsApi.getAll({
@@ -199,7 +208,7 @@ export default function Transactions() {
         currency: appliedCurrencies.length > 0 ? appliedCurrencies : undefined,
         amount_gte: appliedAmountMin ? parseFloat(appliedAmountMin) : undefined,
         amount_lte: appliedAmountMax ? parseFloat(appliedAmountMax) : undefined,
-        ordering: dateOrdering,
+        ordering: ordering as '-date' | 'date' | '-description' | 'description' | '-amount' | 'amount' | '-type' | 'type' | '-category__name' | 'category__name' | '-currency__symbol' | 'currency__symbol',
         page,
         page_size: pageSize,
       })
@@ -746,8 +755,8 @@ export default function Transactions() {
         <>
           <TransactionList
             transactions={transactions}
-            dateOrdering={dateOrdering}
-            onToggleDateSort={() => setDateOrdering(prev => prev === '-date' ? 'date' : '-date')}
+            ordering={ordering}
+            onSort={handleSort}
             onEdit={canManageBudgetData ? handleEdit : undefined}
             onDelete={canManageBudgetData ? handleDelete : undefined}
           />
