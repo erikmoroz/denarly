@@ -62,7 +62,7 @@ export default function BalanceBar({ balances, onSelect }: Props) {
               <div className="font-mono text-[11px] font-medium text-text-muted uppercase tracking-wider mb-1.5">
                 {balance.currency}
               </div>
-              <div className={`font-mono text-lg font-medium tabular-nums ${closingColorClass(closing)}`}>
+              <div className={`font-mono text-base font-medium tabular-nums ${closingColorClass(closing)}`}>
                 {formatAmount(closing)}
               </div>
             </button>

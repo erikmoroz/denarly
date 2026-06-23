@@ -34,7 +34,11 @@ export default function BudgetHealthWidget({ periodId }: Props) {
     return (
       <div className="border border-border rounded-sm bg-surface p-4">
         <h3 className="text-sm font-medium text-text mb-3">Budget Health</h3>
-        <div className="text-sm text-text-muted">Loading...</div>
+        <div className="space-y-3">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-4 bg-surface-muted rounded-sm animate-pulse" />
+          ))}
+        </div>
       </div>
     )
   }

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { ChevronRight } from 'lucide-react'
 import { transactionsApi } from '../../api/client'
 import { formatAmount } from '../../utils/format'
 
@@ -41,7 +42,7 @@ export default function FrequentSpendingWidget({ periodId }: Props) {
           {items.map((item) => (
             <div key={`${item.description}-${item.currency}`} className="flex items-center justify-between text-xs">
               <div className="flex-1 min-w-0 mr-2">
-                <span className="text-text-muted mr-1">&#9656;</span>
+                <ChevronRight size={14} className="text-text-muted mr-1 inline-block align-text-bottom" />
                 <span className="text-text truncate">{item.description}</span>
               </div>
               <div className="flex items-center gap-2 whitespace-nowrap">

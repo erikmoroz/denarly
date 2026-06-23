@@ -215,7 +215,7 @@ function BudgetAccountCard({
       className={`bg-surface p-6 rounded-sm border border-border transition-all ${
         !account.is_active ? 'opacity-60' : ''
       } ${isSelected ? 'ring-2 ring-primary' : ''}`}
-      style={{ borderLeftColor: account.color || '#3B82F6', borderLeftWidth: 4 }}
+      style={{ borderLeftColor: account.color || 'var(--color-primary)', borderLeftWidth: 4 }}
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -306,7 +306,9 @@ function BudgetAccountFormModal({
   const [name, setName] = useState(account?.name || '')
   const [description, setDescription] = useState(account?.description || '')
   const [currency, setCurrency] = useState(account?.default_currency || 'PLN')
-  const [color, setColor] = useState(account?.color || '#3B82F6')
+  // #171717 is the resolved value of --color-primary (design/tokens.md:48).
+  // Native <input type="color"> cannot accept a CSS variable, so the hex literal is required here.
+  const [color, setColor] = useState(account?.color || '#171717')
   const [icon, setIcon] = useState(account?.icon || '')
 
   const handleSubmit = (e: React.FormEvent) => {

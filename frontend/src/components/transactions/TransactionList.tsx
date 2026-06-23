@@ -101,7 +101,7 @@ export default function TransactionList({ transactions, ordering, onSort, onEdit
                   <h4 className="font-sans font-bold text-text">{transaction.description}</h4>
                   <p className="text-sm text-text-muted mt-1">{transaction.category?.name || 'No category'}</p>
                 </div>
-                <span className={`font-mono font-bold text-lg ml-3 ${
+                <span className={`font-mono font-bold text-base ml-3 ${
                   transaction.type === 'income' ? 'text-positive' : 'text-negative'
                 }`}>
                   {transaction.type === 'income' ? '+' : '-'}
