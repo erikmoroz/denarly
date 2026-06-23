@@ -105,14 +105,16 @@ def import_exchanges(
     return 201, {'message': f'Successfully imported {count} new currency exchanges.'}
 
 
-@router.get('/{exchange_id}', response=CurrencyExchangeOut, auth=WorkspaceJWTAuth())
+@router.get('/{exchange_id}', response={200: CurrencyExchangeOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def get_exchange(request: HttpRequest, exchange_id: int):
     """Get a specific currency exchange."""
     workspace_id = request.auth.current_workspace_id
     return CurrencyExchangeService.get_exchange(exchange_id, workspace_id)
 
 
-@router.put('/{exchange_id}', response=CurrencyExchangeOut, auth=WorkspaceJWTAuth())
+@router.put(
+    '/{exchange_id}', response={200: CurrencyExchangeOut, 400: DetailOut, 404: DetailOut}, auth=WorkspaceJWTAuth()
+)
 def update_exchange(request: HttpRequest, exchange_id: int, data: CurrencyExchangeUpdate):
     """Update a currency exchange (requires write access)."""
     user = request.auth
@@ -121,7 +123,7 @@ def update_exchange(request: HttpRequest, exchange_id: int, data: CurrencyExchan
     return CurrencyExchangeService.update(user, workspace_id, exchange_id, data)
 
 
-@router.delete('/{exchange_id}', response={204: None}, auth=WorkspaceJWTAuth())
+@router.delete('/{exchange_id}', response={204: None, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def delete_exchange(request: HttpRequest, exchange_id: int):
     """Delete a currency exchange (requires write access)."""
     user = request.auth

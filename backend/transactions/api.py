@@ -11,6 +11,7 @@ from ninja.files import UploadedFile
 from common.auth import WorkspaceJWTAuth
 from common.permissions import require_role
 from common.throttle import validate_file_size
+from core.schemas.common import DetailOut
 from core.schemas.pagination import PaginatedOut
 from transactions.schemas import (
     FrequentDescriptionsResponse,
@@ -157,14 +158,14 @@ def import_transactions(
     return 201, {'message': f'Successfully imported {count} new transactions.'}
 
 
-@router.get('/{transaction_id}', response=TransactionOut, auth=WorkspaceJWTAuth())
+@router.get('/{transaction_id}', response={200: TransactionOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def get_transaction(request: HttpRequest, transaction_id: int):
     """Get a specific transaction by ID."""
     workspace_id = request.auth.current_workspace_id
     return TransactionService.get_transaction(transaction_id, workspace_id)
 
 
-@router.post('', response={201: TransactionOut}, auth=WorkspaceJWTAuth())
+@router.post('', response={201: TransactionOut, 400: DetailOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def create_transaction(request: HttpRequest, data: TransactionCreate):
     """Create a new transaction (requires write access)."""
     user = request.auth
@@ -174,7 +175,9 @@ def create_transaction(request: HttpRequest, data: TransactionCreate):
     return 201, trans
 
 
-@router.put('/{transaction_id}', response=TransactionOut, auth=WorkspaceJWTAuth())
+@router.put(
+    '/{transaction_id}', response={200: TransactionOut, 400: DetailOut, 404: DetailOut}, auth=WorkspaceJWTAuth()
+)
 def update_transaction(request: HttpRequest, transaction_id: int, data: TransactionCreate):
     """Update a transaction (requires write access)."""
     user = request.auth
@@ -183,7 +186,7 @@ def update_transaction(request: HttpRequest, transaction_id: int, data: Transact
     return TransactionService.update(user, workspace_id, transaction_id, data)
 
 
-@router.delete('/{transaction_id}', response={204: None}, auth=WorkspaceJWTAuth())
+@router.delete('/{transaction_id}', response={204: None, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def delete_transaction(request: HttpRequest, transaction_id: int):
     """Delete a transaction (requires write access)."""
     user = request.auth

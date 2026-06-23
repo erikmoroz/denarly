@@ -37,14 +37,14 @@ def get_current_period(request, current_date: date):
     return 200, period
 
 
-@router.get('{period_id}', response=BudgetPeriodOut, auth=WorkspaceJWTAuth())
+@router.get('{period_id}', response={200: BudgetPeriodOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def get_period(request, period_id: int):
     """Get a specific budget period by ID."""
     workspace_id = request.auth.current_workspace_id
     return BudgetPeriodService.get(period_id, workspace_id)
 
 
-@router.post('', response={201: BudgetPeriodOut}, auth=WorkspaceJWTAuth())
+@router.post('', response={201: BudgetPeriodOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def create_period(request, data: BudgetPeriodCreate):
     """Create a new budget period. The budget_account_id must belong to the current workspace."""
     user = request.auth
@@ -53,7 +53,7 @@ def create_period(request, data: BudgetPeriodCreate):
     return 201, BudgetPeriodService.create(user, workspace_id, data)
 
 
-@router.put('{period_id}', response=BudgetPeriodOut, auth=WorkspaceJWTAuth())
+@router.put('{period_id}', response={200: BudgetPeriodOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def update_period(request, period_id: int, data: BudgetPeriodUpdate):
     """Update a budget period."""
     user = request.auth
@@ -62,7 +62,7 @@ def update_period(request, period_id: int, data: BudgetPeriodUpdate):
     return BudgetPeriodService.update(user, workspace_id, period_id, data)
 
 
-@router.delete('{period_id}', response={204: None}, auth=WorkspaceJWTAuth())
+@router.delete('{period_id}', response={204: None, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def delete_period(request, period_id: int):
     """Delete a budget period."""
     user = request.auth
@@ -72,7 +72,7 @@ def delete_period(request, period_id: int):
     return 204, None
 
 
-@router.post('{period_id}/copy', response={201: BudgetPeriodOut}, auth=WorkspaceJWTAuth())
+@router.post('{period_id}/copy', response={201: BudgetPeriodOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def copy_period(request, period_id: int, data: BudgetPeriodCopy):
     """Copy a budget period with all categories, budgets, and planned transactions."""
     user = request.auth

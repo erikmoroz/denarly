@@ -38,7 +38,7 @@ def list_currencies(request: HttpRequest):
     return CurrencyService.list_currencies(request.auth.current_workspace_id)
 
 
-@router.post('/currencies', response={201: CurrencyOut}, auth=WorkspaceJWTAuth())
+@router.post('/currencies', response={201: CurrencyOut, 400: DetailOut, 403: DetailOut}, auth=WorkspaceJWTAuth())
 def create_currency(request: HttpRequest, data: CurrencyCreate):
     """Create a new currency for the current workspace."""
     workspace_id = request.auth.current_workspace_id
@@ -47,7 +47,9 @@ def create_currency(request: HttpRequest, data: CurrencyCreate):
     return 201, currency
 
 
-@router.delete('/currencies/{currency_id}', response={204: None}, auth=WorkspaceJWTAuth())
+@router.delete(
+    '/currencies/{currency_id}', response={204: None, 403: DetailOut, 404: DetailOut}, auth=WorkspaceJWTAuth()
+)
 def delete_currency(request: HttpRequest, currency_id: int):
     """Delete a currency from the current workspace."""
     workspace_id = request.auth.current_workspace_id
@@ -86,7 +88,7 @@ def create_workspace_endpoint(request: HttpRequest, data: WorkspaceCreate):
 
 
 # IMPORTANT: /current routes must come BEFORE /{workspace_id} routes
-@router.get('/current', response=WorkspaceOut, auth=WorkspaceJWTAuth())
+@router.get('/current', response={200: WorkspaceOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def get_current_workspace_info(request: HttpRequest):
     """Get current workspace details."""
     user = request.auth
@@ -98,7 +100,7 @@ def get_current_workspace_info(request: HttpRequest):
     return _workspace_response(member.workspace, member.role)
 
 
-@router.put('/current', response=WorkspaceOut, auth=WorkspaceJWTAuth())
+@router.put('/current', response={200: WorkspaceOut, 403: DetailOut}, auth=WorkspaceJWTAuth())
 def update_current_workspace(request: HttpRequest, data: WorkspaceUpdate):
     """Update current workspace (requires owner or admin role)."""
     workspace_id = request.auth.current_workspace_id
@@ -112,7 +114,7 @@ def update_current_workspace(request: HttpRequest, data: WorkspaceUpdate):
     return _workspace_response(workspace, user_role)
 
 
-@router.delete('/{workspace_id}', response={204: None}, auth=JWTAuth())
+@router.delete('/{workspace_id}', response={204: None, 403: DetailOut, 404: DetailOut}, auth=JWTAuth())
 def delete_workspace_endpoint(request: HttpRequest, workspace_id: int):
     """Delete a workspace. Only the owner can delete it."""
     WorkspaceMemberService.validate_access(workspace_id, request.auth)
@@ -121,7 +123,7 @@ def delete_workspace_endpoint(request: HttpRequest, workspace_id: int):
     return 204, None
 
 
-@router.post('/{workspace_id}/switch', response=MessageOut, auth=JWTAuth())
+@router.post('/{workspace_id}/switch', response={200: MessageOut, 404: DetailOut}, auth=JWTAuth())
 def switch_workspace(request: HttpRequest, workspace_id: int):
     """Switch to a different workspace."""
     user = request.auth
@@ -151,7 +153,7 @@ def switch_workspace(request: HttpRequest, workspace_id: int):
 # path matching issues (e.g., "leave" or "add" being matched as {member_user_id})
 
 
-@router.get('/{workspace_id}/members', response=list[WorkspaceMemberOut], auth=JWTAuth())
+@router.get('/{workspace_id}/members', response={200: list[WorkspaceMemberOut], 404: DetailOut}, auth=JWTAuth())
 def list_workspace_members(request: HttpRequest, workspace_id: int):
     """
     List all members in the workspace.
@@ -183,7 +185,9 @@ def list_workspace_members(request: HttpRequest, workspace_id: int):
     ]
 
 
-@router.post('/{workspace_id}/members/add', response={201: dict}, auth=JWTAuth())
+@router.post(
+    '/{workspace_id}/members/add', response={201: dict, 400: DetailOut, 403: DetailOut, 404: DetailOut}, auth=JWTAuth()
+)
 def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: WorkspaceMemberAdd):
     """
     Add a new member to the workspace.
@@ -198,7 +202,9 @@ def add_member_to_workspace(request: HttpRequest, workspace_id: int, data: Works
     return 201, WorkspaceMemberService.add_member(user, workspace_id, data)
 
 
-@router.post('/{workspace_id}/members/leave', response=MessageOut, auth=JWTAuth())
+@router.post(
+    '/{workspace_id}/members/leave', response={200: MessageOut, 400: DetailOut, 404: DetailOut}, auth=JWTAuth()
+)
 def leave_workspace(request: HttpRequest, workspace_id: int):
     """
     Leave the workspace (remove yourself).
@@ -210,7 +216,11 @@ def leave_workspace(request: HttpRequest, workspace_id: int):
     return WorkspaceMemberService.leave(request.auth, workspace_id)
 
 
-@router.put('/{workspace_id}/members/{member_user_id}/role', response=dict, auth=JWTAuth())
+@router.put(
+    '/{workspace_id}/members/{member_user_id}/role',
+    response={200: dict, 400: DetailOut, 403: DetailOut, 404: DetailOut},
+    auth=JWTAuth(),
+)
 def update_member_role(
     request: HttpRequest,
     workspace_id: int,
@@ -231,7 +241,11 @@ def update_member_role(
     return WorkspaceMemberService.update_role(user, workspace_id, member_user_id, data.role, current_role)
 
 
-@router.delete('/{workspace_id}/members/{member_user_id}', response={204: None}, auth=JWTAuth())
+@router.delete(
+    '/{workspace_id}/members/{member_user_id}',
+    response={204: None, 400: DetailOut, 403: DetailOut, 404: DetailOut},
+    auth=JWTAuth(),
+)
 def remove_member_from_workspace(request: HttpRequest, workspace_id: int, member_user_id: int):
     """
     Remove a member from the workspace.
@@ -248,7 +262,11 @@ def remove_member_from_workspace(request: HttpRequest, workspace_id: int, member
     return 204, None
 
 
-@router.put('/{workspace_id}/members/{user_id}/reset-password', response=MessageOut, auth=JWTAuth())
+@router.put(
+    '/{workspace_id}/members/{user_id}/reset-password',
+    response={200: MessageOut, 400: DetailOut, 403: DetailOut, 404: DetailOut},
+    auth=JWTAuth(),
+)
 def reset_member_password(
     request: HttpRequest,
     workspace_id: int,

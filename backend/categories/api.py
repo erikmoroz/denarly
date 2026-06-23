@@ -13,6 +13,7 @@ from categories.services import CategoryService
 from common.auth import WorkspaceJWTAuth
 from common.permissions import require_role
 from common.throttle import validate_file_size
+from core.schemas.common import DetailOut
 from core.schemas.pagination import PaginatedOut
 from workspaces.models import WRITE_ROLES
 
@@ -74,14 +75,14 @@ def import_categories(
     return 201, {'message': f'Successfully imported {count} new categories.'}
 
 
-@router.get('/{category_id}', response=CategoryOut, auth=WorkspaceJWTAuth())
+@router.get('/{category_id}', response={200: CategoryOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def get_category(request: HttpRequest, category_id: int):
     """Get a specific category by ID."""
     workspace_id = request.auth.current_workspace_id
     return CategoryService.get_category(category_id, workspace_id)
 
 
-@router.post('', response={201: CategoryOut}, auth=WorkspaceJWTAuth())
+@router.post('', response={201: CategoryOut, 400: DetailOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def create_category(request: HttpRequest, data: CategoryCreate):
     """Create a new category."""
     user = request.auth
@@ -91,7 +92,7 @@ def create_category(request: HttpRequest, data: CategoryCreate):
     return 201, category
 
 
-@router.put('/{category_id}', response=CategoryOut, auth=WorkspaceJWTAuth())
+@router.put('/{category_id}', response={200: CategoryOut, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def update_category(request: HttpRequest, category_id: int, data: CategoryUpdate):
     """Update a category."""
     user = request.auth
@@ -100,7 +101,7 @@ def update_category(request: HttpRequest, category_id: int, data: CategoryUpdate
     return CategoryService.update(user, workspace_id, category_id, data)
 
 
-@router.delete('/{category_id}', response={204: None}, auth=WorkspaceJWTAuth())
+@router.delete('/{category_id}', response={204: None, 404: DetailOut}, auth=WorkspaceJWTAuth())
 def delete_category(request: HttpRequest, category_id: int):
     """Delete a category."""
     workspace_id = request.auth.current_workspace_id
