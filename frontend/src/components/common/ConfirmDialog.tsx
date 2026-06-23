@@ -17,6 +17,7 @@ export default function ConfirmDialog({ isOpen, title, message, onConfirm, onCan
       <div className="flex justify-end space-x-3">
         <button
           onClick={onCancel}
+          autoFocus
           className="px-3 py-1.5 bg-surface border border-border text-text rounded-sm text-xs font-medium hover:bg-surface-hover transition-colors"
         >
           Cancel

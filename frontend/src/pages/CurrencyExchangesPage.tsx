@@ -15,6 +15,7 @@ import ErrorMessage from '../components/common/ErrorMessage'
 import Pagination from '../components/common/Pagination'
 import TotalsSummary from '../components/common/TotalsSummary'
 import CurrencyExchangeList from '../components/currencyExchanges/CurrencyExchangeList'
+import ConfirmDialog from '../components/common/ConfirmDialog'
 
 export default function CurrencyExchangesPage() {
   const queryClient = useQueryClient()
@@ -34,6 +35,7 @@ export default function CurrencyExchangesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [ordering, setOrdering] = useState<string>('-date')
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
 
   const handleSort = (field: string) => {
     setOrdering(prev => {
@@ -150,9 +152,7 @@ export default function CurrencyExchangesPage() {
   }
 
   const handleDelete = (id: number) => {
-    if (window.confirm('Are you sure you want to delete this exchange?')) {
-      deleteMutation.mutate(id)
-    }
+    setDeleteTargetId(id)
   }
 
   const handleAddNew = () => {
@@ -309,6 +309,14 @@ export default function CurrencyExchangesPage() {
           setPrefilledTransactionData(null)
         }}
         prefilledData={prefilledTransactionData || undefined}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteTargetId !== null}
+        title="Delete exchange"
+        message="Are you sure you want to delete this exchange?"
+        onConfirm={() => { if (deleteTargetId !== null) { deleteMutation.mutate(deleteTargetId) } setDeleteTargetId(null) }}
+        onCancel={() => setDeleteTargetId(null)}
       />
     </div>
   )

@@ -8,6 +8,7 @@ import BalanceSection from '../components/balance/BalanceSection'
 import BudgetSummarySection from '../components/budget/BudgetSummarySection'
 import CreateBudgetModal from '../components/modals/budget/CreateBudgetModal'
 import EditBudgetModal from '../components/modals/budget/EditBudgetModal'
+import ConfirmDialog from '../components/common/ConfirmDialog'
 import Loading from '../components/common/Loading'
 import ErrorMessage from '../components/common/ErrorMessage'
 
@@ -28,6 +29,7 @@ export default function BudgetPeriod() {
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedBudget, setSelectedBudget] = useState<CategoryBudget | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
 
   const { data: period, isLoading, error } = useQuery({
     queryKey: ['budget-period', periodId],
@@ -55,9 +57,7 @@ export default function BudgetPeriod() {
   }
 
   const handleDelete = (id: number) => {
-    if (window.confirm('Are you sure you want to delete this budget?')) {
-      deleteMutation.mutate(id)
-    }
+    setDeleteTargetId(id)
   }
 
   if (isLoading) return <Loading />
@@ -107,6 +107,14 @@ export default function BudgetPeriod() {
         }}
         budget={selectedBudget}
         periodId={periodId}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteTargetId !== null}
+        title="Delete budget"
+        message="Are you sure you want to delete this budget?"
+        onConfirm={() => { if (deleteTargetId !== null) { deleteMutation.mutate(deleteTargetId) } setDeleteTargetId(null) }}
+        onCancel={() => setDeleteTargetId(null)}
       />
     </div>
   )
