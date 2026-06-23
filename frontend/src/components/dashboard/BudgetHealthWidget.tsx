@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { reportsApi } from '../../api/client'
+import { formatAmount } from '../../utils/format'
 
 interface CategoryItem {
   id: number
@@ -14,13 +15,6 @@ interface CategoryItem {
 
 interface Props {
   periodId: number | null
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
 }
 
 export default function BudgetHealthWidget({ periodId }: Props) {

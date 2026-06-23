@@ -1,15 +1,9 @@
+import { formatAmount } from '../../utils/format'
 import type { PeriodBalance } from '../../types'
 
 interface Props {
   balances: PeriodBalance[]
   onSelect: (balance: PeriodBalance) => void
-}
-
-function formatAmount(value: number): string {
-  return value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
 }
 
 function closingColorClass(value: number): string {

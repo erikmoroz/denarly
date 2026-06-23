@@ -1,19 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { transactionsApi } from '../../api/client'
+import { formatAmount } from '../../utils/format'
 
 interface Props {
   periodId: number | null
-}
-
-function formatAmount(total: string): string {
-  const isNegative = total.startsWith('-')
-  const abs = isNegative ? total.slice(1) : total
-  const [intPart, decPart = '00'] = abs.split('.')
-  const paddedDec = decPart.length < 2 ? decPart.padEnd(2, '0') : decPart.slice(0, 2)
-  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-  const sign = isNegative ? '-' : ''
-  return `${sign}${formattedInt}.${paddedDec}`
 }
 
 export default function FrequentSpendingWidget({ periodId }: Props) {

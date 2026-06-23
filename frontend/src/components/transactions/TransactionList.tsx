@@ -1,4 +1,5 @@
 import SortableTh from '../common/SortableTh'
+import { formatAmount } from '../../utils/format'
 import type { Transaction } from '../../types'
 
 interface Props {
@@ -45,7 +46,7 @@ export default function TransactionList({ transactions, ordering, onSort, onEdit
                   transaction.type === 'income' ? 'text-positive' : 'text-negative'
                 }`}>
                   {transaction.type === 'income' ? '+' : '-'}
-                  {Number(Math.abs(transaction.amount)).toFixed(2)}
+                  {formatAmount(Math.abs(transaction.amount))}
                 </span>
               </td>
               <td className="px-6 py-3 text-center">
@@ -104,7 +105,7 @@ export default function TransactionList({ transactions, ordering, onSort, onEdit
                   transaction.type === 'income' ? 'text-positive' : 'text-negative'
                 }`}>
                   {transaction.type === 'income' ? '+' : '-'}
-                  {Number(Math.abs(transaction.amount)).toFixed(2)}
+                  {formatAmount(Math.abs(transaction.amount))}
                 </span>
               </div>
 
