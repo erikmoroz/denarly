@@ -6,6 +6,7 @@ import type { Transaction, Category, PaginatedResponse } from '../../../types'
 import { useBudgetPeriod } from '../../../contexts/BudgetPeriodContext'
 import { format } from 'date-fns'
 import DatePicker from '../../DatePicker'
+import SegmentedControl from '../../common/SegmentedControl'
 import Modal from '../../common/Modal'
 import Select from '../../common/Select'
 
@@ -193,31 +194,18 @@ export default function TransactionFormModal({ isOpen, onClose, transaction, pre
 
           <div className="mb-6">
             <label className="block font-mono text-[9px] uppercase tracking-widest text-text-muted mb-2">Type *</label>
-            <div className="flex space-x-6">
-              <label className="flex items-center cursor-pointer group">
-                <input
-                  type="radio"
-                  value="expense"
-                  checked={type === 'expense'}
-                  onChange={(e) => setType(e.target.value as 'expense')}
-                  className="w-4 h-4 text-primary bg-surface-hover border-border focus:ring-border-focus"
-                />
-                <span className="ml-2 font-sans text-sm text-text select-none group-hover:text-primary transition-colors">Expense</span>
-              </label>
-              <label className="flex items-center cursor-pointer group">
-                <input
-                  type="radio"
-                  value="income"
-                  checked={type === 'income'}
-                  onChange={(e) => {
-                    setType(e.target.value as 'income')
-                    setCategoryId('') // Clear category for income
-                  }}
-                  className="w-4 h-4 text-primary bg-surface-hover border-border focus:ring-border-focus"
-                />
-                <span className="ml-2 font-sans text-sm text-text select-none group-hover:text-primary transition-colors">Income</span>
-              </label>
-            </div>
+            <SegmentedControl
+              value={type}
+              aria-label="Transaction type"
+              onChange={(newType) => {
+                setType(newType)
+                if (newType === 'income') setCategoryId('') // Clear category for income
+              }}
+              options={[
+                { value: 'expense', label: 'Expense', tone: 'primary' },
+                { value: 'income', label: 'Income', tone: 'positive' },
+              ]}
+            />
           </div>
 
           <div className="flex justify-end space-x-3 mt-8">
