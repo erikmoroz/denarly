@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { X } from 'lucide-react'
 import { transactionsApi, categoriesApi } from '../../../api/client'
 import type { Transaction, Category, PaginatedResponse } from '../../../types'
 import { useBudgetPeriod } from '../../../contexts/BudgetPeriodContext'
 import { format } from 'date-fns'
 import DatePicker from '../../DatePicker'
+import Modal from '../../common/Modal'
 
 interface PrefilledData {
   date?: string
@@ -110,16 +110,7 @@ export default function TransactionFormModal({ isOpen, onClose, transaction, pre
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-[rgba(47,51,51,0.5)] flex items-center justify-center z-50 p-4 backdrop-blur-[1px]">
-      <div className="bg-surface rounded-sm p-6 w-full max-w-md relative border border-border">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-text-muted hover:text-primary transition-colors flex items-center justify-center"
-          aria-label="Close modal"
-        >
-          <X size={14} />
-        </button>
-
+    <Modal open={isOpen} onClose={onClose} size="md" className="p-6">
         <h2 className="font-sans font-semibold text-text text-sm mb-6">
           {transaction ? 'Edit Transaction' : 'New Transaction'}
         </h2>
@@ -250,7 +241,6 @@ export default function TransactionFormModal({ isOpen, onClose, transaction, pre
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }

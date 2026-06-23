@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { X } from 'lucide-react'
 import { budgetsApi, categoriesApi, budgetPeriodsApi } from '../../../api/client'
 import type { Category, BudgetPeriod, PaginatedResponse } from '../../../types'
+import Modal from '../../common/Modal'
 
 interface CategoryBudget {
   id: number
@@ -97,18 +97,7 @@ export default function EditBudgetModal({ isOpen, onClose, budget, periodId }: P
   if (!isOpen || !budget) return null
 
   return (
-    <div className="fixed inset-0 bg-[rgba(47,51,51,0.5)] flex items-center justify-center z-50 p-4 backdrop-blur-[1px]">
-      <div 
-        className="bg-surface rounded-sm p-6 w-full max-w-md relative border border-border"
-      >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-text-muted hover:text-text transition-colors flex items-center justify-center"
-          aria-label="Close modal"
-        >
-          <X size={14} />
-        </button>
-
+    <Modal open={isOpen} onClose={onClose} size="md" className="p-6">
         <h2 className="text-sm font-medium text-text mb-6">Edit Budget</h2>
 
         <form onSubmit={handleSubmit}>
@@ -205,7 +194,6 @@ export default function EditBudgetModal({ isOpen, onClose, budget, periodId }: P
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }

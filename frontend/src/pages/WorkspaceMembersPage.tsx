@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import Loading from '../components/common/Loading'
 import EmptyState from '../components/common/EmptyState'
 import ConfirmDialog from '../components/common/ConfirmDialog'
+import Modal from '../components/common/Modal'
 import type { WorkspaceMember, AddMemberRequest } from '../types'
 import {
   KeyRound,
@@ -378,8 +379,7 @@ function AddMemberModal({ onClose, onSubmit, isSubmitting }: AddMemberModalProps
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-sm p-6 max-w-md w-full border border-border">
+    <Modal open={true} onClose={onClose} size="md" className="p-6">
         <h2 className="text-sm font-medium text-text mb-4">Add Member</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -464,8 +464,7 @@ function AddMemberModal({ onClose, onSubmit, isSubmitting }: AddMemberModalProps
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -485,8 +484,7 @@ function EditRoleModal({ member, onClose, onSubmit, isSubmitting }: EditRoleModa
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-sm p-6 max-w-md w-full border border-border">
+    <Modal open={true} onClose={onClose} size="md" className="p-6">
         <h2 className="text-sm font-medium text-text mb-4">Change Role</h2>
         <p className="text-text-muted mb-4">
           Update role for <strong className="text-text">{member.full_name || member.email}</strong>
@@ -525,8 +523,7 @@ function EditRoleModal({ member, onClose, onSubmit, isSubmitting }: EditRoleModa
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -560,8 +557,7 @@ function ResetPasswordModal({ member, onClose, onSubmit, isSubmitting }: ResetPa
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-sm p-6 max-w-md w-full border border-border">
+    <Modal open={true} onClose={onClose} size="md" className="p-6">
         <h2 className="text-sm font-medium text-text mb-2">Reset Password</h2>
         <p className="text-text-muted mb-4">
           Resetting password for <strong className="text-text">{member.full_name || member.email}</strong>
@@ -626,8 +622,7 @@ function ResetPasswordModal({ member, onClose, onSubmit, isSubmitting }: ResetPa
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -671,8 +666,7 @@ function ChangeMyPasswordModal({ onClose, onSubmit, isSubmitting }: ChangeMyPass
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-sm p-6 max-w-md w-full border border-border">
+    <Modal open={true} onClose={onClose} size="md" className="p-6">
         <h2 className="text-sm font-medium text-text mb-2">Change My Password</h2>
         <p className="text-text-muted mb-4">
           Update your account password
@@ -757,7 +751,6 @@ function ChangeMyPasswordModal({ onClose, onSubmit, isSubmitting }: ChangeMyPass
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }

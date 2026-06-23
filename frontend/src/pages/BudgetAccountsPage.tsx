@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import Loading from '../components/common/Loading'
 import EmptyState from '../components/common/EmptyState'
 import ConfirmDialog from '../components/common/ConfirmDialog'
+import Modal from '../components/common/Modal'
 import type { BudgetAccount } from '../types'
 
 export default function BudgetAccountsPage() {
@@ -291,8 +292,7 @@ function BudgetAccountFormModal({
   const iconOptions = ['', '💰', '💳', '🏠', '🚗', '💼', '🎯', '🛒', '✈️', '📱', '🎓', '📊']
 
   return (
-    <div className="fixed inset-0 bg-[rgba(47,51,51,0.5)] flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-sm border border-border p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <Modal open={true} onClose={onClose} size="md" className="p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="font-sans font-semibold text-text text-sm mb-4">
           {account ? 'Edit Budget Account' : 'Create Budget Account'}
         </h2>
@@ -390,7 +390,6 @@ function BudgetAccountFormModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   )
 }
