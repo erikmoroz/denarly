@@ -5,7 +5,7 @@ import { budgetAccountsApi } from '../api/client'
 import { useBudgetAccount } from '../contexts/BudgetAccountContext'
 import { usePermissions } from '../hooks/usePermissions'
 import toast from 'react-hot-toast'
-import Loading from '../components/common/Loading'
+import Skeleton from '../components/common/Skeleton'
 import EmptyState from '../components/common/EmptyState'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Modal from '../components/common/Modal'
@@ -74,7 +74,39 @@ export default function BudgetAccountsPage() {
     },
   })
 
-  if (isLoading) return <Loading />
+  if (isLoading) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <Skeleton className="h-5 w-40" />
+          <div className="flex items-center gap-4">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-7 w-28" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-surface p-6 rounded-sm border border-border border-l-4">
+              <div className="flex items-center gap-3 mb-4">
+                <Skeleton className="h-8 w-8 flex-shrink-0" />
+                <Skeleton className="h-5 w-32" />
+              </div>
+              <Skeleton className="h-4 w-full mb-4" />
+              <Skeleton className="h-6 w-16 mb-4" />
+              <div className="flex items-center justify-between pt-4">
+                <Skeleton className="h-4 w-16" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-5 w-5" />
+                  <Skeleton className="h-5 w-5" />
+                  <Skeleton className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
   if (error) return <div className="text-negative p-4">Failed to load budget accounts</div>
 
   return (

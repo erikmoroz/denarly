@@ -9,7 +9,7 @@ import BudgetSummarySection from '../components/budget/BudgetSummarySection'
 import CreateBudgetModal from '../components/modals/budget/CreateBudgetModal'
 import EditBudgetModal from '../components/modals/budget/EditBudgetModal'
 import ConfirmDialog from '../components/common/ConfirmDialog'
-import Loading from '../components/common/Loading'
+import Skeleton, { SkeletonRows } from '../components/common/Skeleton'
 import ErrorMessage from '../components/common/ErrorMessage'
 
 interface CategoryBudget {
@@ -60,7 +60,25 @@ export default function BudgetPeriod() {
     setDeleteTargetId(id)
   }
 
-  if (isLoading) return <Loading />
+  if (isLoading) {
+    return (
+      <div className="max-w-screen-2xl mx-auto">
+        <div className="bg-surface border border-border rounded-sm p-4 sm:p-6 md:p-8 mb-8 sm:mb-12">
+          <Skeleton className="h-5 w-48 mb-3" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="bg-surface border border-border rounded-sm p-4 sm:p-6 md:p-8 mb-8 sm:mb-12">
+          <SkeletonRows count={2} className="space-y-4" rowClassName="h-16 w-full" />
+        </div>
+        <div className="flex items-center gap-4 mb-8 mt-8 sm:mt-12">
+          <Skeleton className="h-5 w-40" />
+        </div>
+        <div className="bg-surface border border-border rounded-sm p-4 sm:p-6 md:p-8">
+          <SkeletonRows count={3} className="divide-y divide-border" rowClassName="h-12 w-full" />
+        </div>
+      </div>
+    )
+  }
   if (error) return <ErrorMessage message="Failed to load budget period" />
 
   return (

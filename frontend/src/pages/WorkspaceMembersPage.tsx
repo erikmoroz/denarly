@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useWorkspace } from '../contexts/WorkspaceContext'
 import { usePermissions } from '../hooks/usePermissions'
 import toast from 'react-hot-toast'
-import Loading from '../components/common/Loading'
+import Skeleton from '../components/common/Skeleton'
 import EmptyState from '../components/common/EmptyState'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Modal from '../components/common/Modal'
@@ -107,7 +107,52 @@ export default function WorkspaceMembersPage() {
     },
   })
 
-  if (workspaceLoading || membersLoading) return <Loading />
+  if (workspaceLoading || membersLoading) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-7 w-36" />
+            <Skeleton className="h-7 w-28" />
+          </div>
+        </div>
+        <div className="bg-surface rounded-sm overflow-hidden border border-border">
+          <div className="bg-surface-hover px-6 py-3">
+            <div className="grid grid-cols-4 gap-4">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3 w-12" />
+              <Skeleton className="h-3 w-14" />
+              <Skeleton className="h-3 w-14 ml-auto" />
+            </div>
+          </div>
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="px-6 py-4 grid grid-cols-4 gap-4 items-center">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-10 flex-shrink-0" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-44" />
+                  </div>
+                </div>
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-5 w-16" />
+                <div className="flex justify-end gap-2">
+                  <Skeleton className="h-5 w-5" />
+                  <Skeleton className="h-5 w-5" />
+                  <Skeleton className="h-5 w-5" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
   if (error) return <div className="text-negative p-4">Failed to load workspace members</div>
 
   return (
