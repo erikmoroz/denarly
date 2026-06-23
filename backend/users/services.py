@@ -448,7 +448,10 @@ class UserService:
 
             UserTwoFactor.objects.filter(user=user).delete()
 
-            # Delete user — CASCADE: UserPreferences
+            # Delete preferences (CASCADE handles this, but explicit for defense-in-depth)
+            UserPreferences.objects.filter(user=user).delete()
+
+            # Delete user
             # SET_NULL: UserConsent (retained for GDPR audit), created_by/updated_by on financial models
             user.delete()
 

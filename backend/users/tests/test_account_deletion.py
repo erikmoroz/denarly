@@ -116,6 +116,22 @@ class AccountDeletionTests(AuthMixin, TestCase):
         self.assertIsNotNone(data['blocking_workspaces'])
         self.assertEqual(len(data['blocking_workspaces']), 1)
 
+    def test_preferences_deleted_on_account_deletion(self):
+        """UserPreferences are explicitly deleted on account deletion (defense-in-depth)."""
+        from users.models import UserPreferences
+
+        UserPreferences.objects.create(user=self.user)
+
+        self.client.delete(
+            '/api/users/me',
+            {'password': self.user_password},
+            content_type='application/json',
+            **self.auth_headers(),
+        )
+
+        self.assertFalse(User.objects.filter(id=self.user.id).exists())
+        self.assertFalse(UserPreferences.objects.filter(user_id=self.user.id).exists())
+
     def test_consent_records_survive_account_deletion(self):
         """Consent records should be retained (with user=NULL) after account deletion."""
         from users.models import UserConsent
