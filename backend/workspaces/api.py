@@ -7,7 +7,7 @@ from common.auth import JWTAuth, WorkspaceJWTAuth
 from common.permissions import require_role
 from core.schemas import DetailOut, MessageOut
 from users.two_factor import TwoFactorService
-from workspaces.models import ADMIN_ROLES, Role
+from workspaces.models import ADMIN_ROLES, OWNER_ROLES, Role
 from workspaces.schemas import (
     CurrencyCreate,
     CurrencyOut,
@@ -92,7 +92,7 @@ def update_current_workspace(request: HttpRequest, data: WorkspaceUpdate):
 def delete_workspace_endpoint(request: HttpRequest, workspace_id: int):
     """Delete a workspace. Only the owner can delete it."""
     WorkspaceMemberService.validate_access(workspace_id, request.auth)
-    require_role(request.auth, workspace_id, [Role.OWNER])
+    require_role(request.auth, workspace_id, OWNER_ROLES)
     WorkspaceService.delete_workspace(user=request.auth, workspace_id=workspace_id)
     return 204, None
 

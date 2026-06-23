@@ -95,8 +95,6 @@ def import_exchanges(
         data = json.loads(file.read())
     except json.JSONDecodeError:
         return 400, {'detail': 'Invalid JSON file.'}
-    except Exception as e:
-        return 400, {'detail': f'Invalid data format: {e}'}
 
     count = CurrencyExchangeService.import_data(user, workspace_id, budget_period_id, data)
 

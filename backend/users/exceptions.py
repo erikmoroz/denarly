@@ -18,11 +18,6 @@ class UserConsentNotFoundError(NotFoundError):
     default_code = 'consent_not_found'
 
 
-class UserValidationError(ValidationError):
-    def __init__(self, message: str):
-        super().__init__(message, code='validation_error')
-
-
 class TwoFactorNotEnabledError(NotFoundError):
     default_message = 'Two-factor authentication is not enabled for this user'
     default_code = 'two_factor_not_enabled'

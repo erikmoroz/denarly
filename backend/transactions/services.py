@@ -43,7 +43,13 @@ class TransactionService:
 
     @staticmethod
     def update_period_balance(period_id: int, currency, trans_type: str, amount: Decimal, operation: str) -> None:
-        """Add or subtract a transaction amount from the period balance."""
+        """Add or subtract a transaction amount from the period balance.
+
+        Not atomic on its own: callers MUST wrap the enclosing operation in
+        ``@db_transaction.atomic`` so this read/modify/write of the balance stays
+        consistent with the triggering transaction's row save. All current callers
+        (``create``, ``update``, ``delete``, ``import_data``) already do.
+        """
         balance = get_or_create_period_balance(period_id, currency)
         amount_value = amount if operation == 'add' else -amount
 

@@ -125,8 +125,6 @@ def import_planned_transactions(
         data = json.loads(file.read())
     except json.JSONDecodeError:
         return 400, {'detail': 'Invalid JSON file.'}
-    except Exception as e:
-        return 400, {'detail': f'Invalid data format: {e}'}
 
     count = PlannedTransactionService.import_data(user, workspace_id, budget_period_id, data)
     if count == 0:
