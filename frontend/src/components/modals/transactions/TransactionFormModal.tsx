@@ -7,6 +7,7 @@ import { useBudgetPeriod } from '../../../contexts/BudgetPeriodContext'
 import { format } from 'date-fns'
 import DatePicker from '../../DatePicker'
 import Modal from '../../common/Modal'
+import Select from '../../common/Select'
 
 interface PrefilledData {
   date?: string
@@ -153,16 +154,13 @@ export default function TransactionFormModal({ isOpen, onClose, transaction, pre
               ) : !selectedPeriodId ? (
                 <p className="text-text bg-surface-hover/20 px-3 py-1 rounded-sm text-sm border border-border">No budget period selected</p>
               ) : (
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(Number(e.target.value))}
-                  className="w-full bg-surface-hover border border-border rounded-none px-3 py-2 font-mono text-sm text-text focus:bg-surface focus:ring-2 focus:ring-border-focus focus:outline-none transition-all"
-                >
-                  <option value="">Select category (optional)</option>
-                  {categories?.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+                <Select
+                  value={categoryId === '' ? null : categoryId}
+                  onChange={(v) => setCategoryId(v)}
+                  options={(categories ?? []).map((c) => ({ value: c.id, label: c.name }))}
+                  placeholder="Select category (optional)"
+                  aria-label="Category"
+                />
               )}
             </div>
           )}
@@ -183,15 +181,13 @@ export default function TransactionFormModal({ isOpen, onClose, transaction, pre
 
             <div>
               <label className="block font-mono text-[9px] uppercase tracking-widest text-text-muted mb-1">Currency *</label>
-              <select
+              <Select
                 value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="w-full bg-surface-hover border border-border rounded-none px-3 py-2 font-mono text-sm text-text focus:bg-surface focus:ring-2 focus:ring-border-focus focus:outline-none transition-all"
-              >
-                {CURRENCIES.map(cur => (
-                  <option key={cur} value={cur}>{cur}</option>
-                ))}
-              </select>
+                onChange={(v) => setCurrency(v)}
+                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+                mono
+                aria-label="Currency"
+              />
             </div>
           </div>
 

@@ -9,6 +9,7 @@ import Loading from '../components/common/Loading'
 import EmptyState from '../components/common/EmptyState'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Modal from '../components/common/Modal'
+import Select from '../components/common/Select'
 import type { BudgetAccount } from '../types'
 
 export default function BudgetAccountsPage() {
@@ -329,17 +330,12 @@ function BudgetAccountFormModal({
               <label className="block font-mono text-[9px] uppercase tracking-widest text-text-muted mb-1">
                 Icon
               </label>
-              <select
+              <Select
                 value={icon}
-                onChange={(e) => setIcon(e.target.value)}
-                className="w-full px-3 py-2 bg-surface-muted border border-border rounded-none focus:outline-none focus:ring-2 focus:ring-border-focus font-mono text-sm text-text"
-              >
-                {iconOptions.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt || 'None'}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setIcon(v)}
+                options={iconOptions.map((o) => ({ value: o, label: o || 'None' }))}
+                aria-label="Icon"
+              />
             </div>
 
             <div>
@@ -359,17 +355,19 @@ function BudgetAccountFormModal({
             <label className="block font-mono text-[9px] uppercase tracking-widest text-text-muted mb-1">
               Default Currency
             </label>
-            <select
+            <Select
               value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="w-full px-3 py-2 bg-surface-muted border border-border rounded-none focus:outline-none focus:ring-2 focus:ring-border-focus font-mono text-sm text-text"
-            >
-              <option value="PLN">PLN - Polish Zloty</option>
-              <option value="USD">USD - US Dollar</option>
-              <option value="EUR">EUR - Euro</option>
-              <option value="UAH">UAH - Ukrainian Hryvnia</option>
-              <option value="GBP">GBP - British Pound</option>
-            </select>
+              onChange={(v) => setCurrency(v)}
+              options={[
+                { value: 'PLN', label: 'PLN - Polish Zloty' },
+                { value: 'USD', label: 'USD - US Dollar' },
+                { value: 'EUR', label: 'EUR - Euro' },
+                { value: 'UAH', label: 'UAH - Ukrainian Hryvnia' },
+                { value: 'GBP', label: 'GBP - British Pound' },
+              ]}
+              mono
+              aria-label="Default Currency"
+            />
           </div>
 
           <div className="flex gap-3 pt-4">

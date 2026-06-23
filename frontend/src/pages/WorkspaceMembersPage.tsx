@@ -9,6 +9,7 @@ import Loading from '../components/common/Loading'
 import EmptyState from '../components/common/EmptyState'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 import Modal from '../components/common/Modal'
+import Select from '../components/common/Select'
 import type { WorkspaceMember, AddMemberRequest } from '../types'
 import {
   KeyRound,
@@ -431,15 +432,16 @@ function AddMemberModal({ onClose, onSubmit, isSubmitting }: AddMemberModalProps
             <label className="block font-mono text-[9px] uppercase tracking-widest text-text-muted mb-1">
               Role *
             </label>
-            <select
+            <Select
               value={role}
-              onChange={(e) => setRole(e.target.value as 'admin' | 'member' | 'viewer')}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-none focus:outline-none focus:ring-2 focus:ring-border-focus font-mono text-sm text-text"
-            >
-              <option value="viewer">Viewer - Can view all data</option>
-              <option value="member">Member - Can view and edit data</option>
-              <option value="admin">Admin - Can manage members and settings</option>
-            </select>
+              onChange={(v) => setRole(v)}
+              options={[
+                { value: 'viewer', label: 'Viewer - Can view all data' },
+                { value: 'member', label: 'Member - Can view and edit data' },
+                { value: 'admin', label: 'Admin - Can manage members and settings' },
+              ]}
+              aria-label="Role"
+            />
           </div>
 
           <p className="text-xs text-text-muted">
@@ -494,15 +496,16 @@ function EditRoleModal({ member, onClose, onSubmit, isSubmitting }: EditRoleModa
             <label className="block font-mono text-[9px] uppercase tracking-widest text-text-muted mb-1">
               Role
             </label>
-            <select
+            <Select
               value={role}
-              onChange={(e) => setRole(e.target.value as 'admin' | 'member' | 'viewer')}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-none focus:outline-none focus:ring-2 focus:ring-border-focus font-mono text-sm text-text"
-            >
-              <option value="viewer">Viewer - Can view all data</option>
-              <option value="member">Member - Can view and edit data</option>
-              <option value="admin">Admin - Can manage members and settings</option>
-            </select>
+              onChange={(v) => setRole(v)}
+              options={[
+                { value: 'viewer', label: 'Viewer - Can view all data' },
+                { value: 'member', label: 'Member - Can view and edit data' },
+                { value: 'admin', label: 'Admin - Can manage members and settings' },
+              ]}
+              aria-label="Role"
+            />
           </div>
 
           <div className="flex gap-3 pt-4">

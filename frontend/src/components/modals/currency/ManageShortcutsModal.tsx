@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { exchangeShortcutsApi } from '../../../api/client'
 import type { ExchangeShortcut } from '../../../types'
 import Modal from '../../common/Modal'
+import Select from '../../common/Select'
 
 const CURRENCIES = ['PLN', 'USD', 'EUR', 'UAH']
 
@@ -118,25 +119,23 @@ export default function ManageShortcutsModal({ isOpen, onClose, shortcuts }: Pro
                 {editingId === shortcut.id ? (
                   <>
                     <div className="flex items-center gap-2">
-                      <select
+                      <Select
                         value={editFrom}
-                        onChange={(e) => setEditFrom(e.target.value)}
-                        className="bg-surface-muted border border-border rounded-none px-2 py-1.5 font-mono text-sm text-text focus:ring-2 focus:ring-border-focus focus:outline-none"
-                      >
-                        {CURRENCIES.map(cur => (
-                          <option key={cur} value={cur}>{cur}</option>
-                        ))}
-                      </select>
+                        onChange={(v) => setEditFrom(v)}
+                        options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+                        mono
+                        aria-label="Edit from currency"
+                        className="w-24"
+                      />
                       <span className="text-text-muted">→</span>
-                      <select
+                      <Select
                         value={editTo}
-                        onChange={(e) => setEditTo(e.target.value)}
-                        className="bg-surface-muted border border-border rounded-none px-2 py-1.5 font-mono text-sm text-text focus:ring-2 focus:ring-border-focus focus:outline-none"
-                      >
-                        {CURRENCIES.map(cur => (
-                          <option key={cur} value={cur}>{cur}</option>
-                        ))}
-                      </select>
+                        onChange={(v) => setEditTo(v)}
+                        options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+                        mono
+                        aria-label="Edit to currency"
+                        className="w-24"
+                      />
                     </div>
                     <div className="flex items-center gap-1">
                       <button
@@ -184,25 +183,23 @@ export default function ManageShortcutsModal({ isOpen, onClose, shortcuts }: Pro
         {/* Add shortcut form */}
         <form onSubmit={handleAdd}>
           <div className="flex items-center gap-2">
-            <select
+            <Select
               value={newFrom}
-              onChange={(e) => setNewFrom(e.target.value)}
-              className="bg-surface-muted border border-border rounded-none px-3 py-2 font-mono text-sm text-text focus:ring-2 focus:ring-border-focus focus:outline-none"
-            >
-              {CURRENCIES.map(cur => (
-                <option key={cur} value={cur}>{cur}</option>
-              ))}
-            </select>
+              onChange={(v) => setNewFrom(v)}
+              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              mono
+              aria-label="New shortcut from currency"
+              className="w-24"
+            />
             <span className="text-text-muted">→</span>
-            <select
+            <Select
               value={newTo}
-              onChange={(e) => setNewTo(e.target.value)}
-              className="bg-surface-muted border border-border rounded-none px-3 py-2 font-mono text-sm text-text focus:ring-2 focus:ring-border-focus focus:outline-none"
-            >
-              {CURRENCIES.map(cur => (
-                <option key={cur} value={cur}>{cur}</option>
-              ))}
-            </select>
+              onChange={(v) => setNewTo(v)}
+              options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+              mono
+              aria-label="New shortcut to currency"
+              className="w-24"
+            />
             <button
               type="submit"
               disabled={createMutation.isPending}

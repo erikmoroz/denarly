@@ -8,6 +8,7 @@ import { useBudgetPeriod } from '../../../contexts/BudgetPeriodContext'
 import { format } from 'date-fns'
 import DatePicker from '../../DatePicker'
 import Modal from '../../common/Modal'
+import Select from '../../common/Select'
 
 interface Props {
   isOpen: boolean
@@ -179,15 +180,13 @@ export default function CurrencyExchangeFormModal({ isOpen, onClose, exchange, p
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block font-mono text-[9px] uppercase tracking-widest text-text-muted mb-1">From Currency *</label>
-              <select
+              <Select
                 value={fromCurrency}
-                onChange={(e) => setFromCurrency(e.target.value)}
-                className="w-full bg-surface-muted border border-border rounded-none px-3 py-2 font-mono text-sm text-text focus:bg-surface focus:ring-2 focus:ring-border-focus focus:outline-none transition-colors"
-              >
-                {CURRENCIES.map(cur => (
-                  <option key={cur} value={cur}>{cur}</option>
-                ))}
-              </select>
+                onChange={(v) => setFromCurrency(v)}
+                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+                mono
+                aria-label="From Currency"
+              />
             </div>
 
             <div>
@@ -207,15 +206,13 @@ export default function CurrencyExchangeFormModal({ isOpen, onClose, exchange, p
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block font-mono text-[9px] uppercase tracking-widest text-text-muted mb-1">To Currency *</label>
-              <select
+              <Select
                 value={toCurrency}
-                onChange={(e) => setToCurrency(e.target.value)}
-                className="w-full bg-surface-muted border border-border rounded-none px-3 py-2 font-mono text-sm text-text focus:bg-surface focus:ring-2 focus:ring-border-focus focus:outline-none transition-colors"
-              >
-                {CURRENCIES.map(cur => (
-                  <option key={cur} value={cur}>{cur}</option>
-                ))}
-              </select>
+                onChange={(v) => setToCurrency(v)}
+                options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+                mono
+                aria-label="To Currency"
+              />
             </div>
 
             <div>

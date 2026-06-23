@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { UserPreferences } from '../../types'
+import Select from '../common/Select'
 
 const WEEKDAY_OPTIONS = [
   { value: 1, label: 'Monday' },
@@ -50,18 +51,13 @@ export default function PreferencesForm({ preferences, onSubmit, isLoading }: Pr
         <p className="text-sm text-text-muted mb-3">
           Choose the font used throughout the app.
         </p>
-        <select
+        <Select
           id="font_family"
           value={fontFamily}
-          onChange={(e) => setFontFamily(e.target.value)}
-          className="w-full bg-surface-muted border border-border rounded-none px-3 py-2 font-mono text-sm text-text focus:ring-2 focus:ring-border-focus focus:outline-none transition-all"
-        >
-          {FONT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => setFontFamily(v)}
+          options={FONT_OPTIONS}
+          aria-label="Font Family"
+        />
       </div>
 
       <div>
@@ -71,18 +67,13 @@ export default function PreferencesForm({ preferences, onSubmit, isLoading }: Pr
         <p className="text-sm text-text-muted mb-3">
           Choose which day your calendar starts with.
         </p>
-        <select
+        <Select
           id="calendar_start_day"
           value={calendarStartDay}
-          onChange={(e) => setCalendarStartDay(Number(e.target.value))}
-          className="w-full bg-surface-muted border border-border rounded-none px-3 py-2 font-mono text-sm text-text focus:ring-2 focus:ring-border-focus focus:outline-none transition-all"
-        >
-          {WEEKDAY_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => setCalendarStartDay(v)}
+          options={WEEKDAY_OPTIONS}
+          aria-label="First Day of the Week"
+        />
       </div>
 
       <div className="flex justify-end">
