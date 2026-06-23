@@ -10,6 +10,7 @@ from budget_accounts.models import BudgetAccount
 from budget_periods.factories import BudgetPeriodFactory
 from categories.factories import CategoryFactory
 from common.enums import TotalsLabel
+from common.tests.helpers import create_other_workspace
 from common.tests.mixins import APIClientMixin, AuthMixin
 from period_balances.factories import PeriodBalanceFactory
 from period_balances.models import PeriodBalance
@@ -18,7 +19,7 @@ from planned_transactions.models import PlannedTransaction
 from planned_transactions.tasks import execute_planned_transaction
 from transactions.models import Transaction
 from workspaces.factories import WorkspaceFactory, WorkspaceMemberFactory
-from workspaces.models import Workspace, WorkspaceMember
+from workspaces.models import WorkspaceMember
 
 User = get_user_model()
 
@@ -814,27 +815,7 @@ class TestExportPlannedTransactions(PlannedTransactionTestCase):
     def test_export_planned_from_other_workspace_fails(self):
         """Test exporting planned transactions from another workspace returns 404."""
         # Create another workspace
-        other_workspace = Workspace.objects.create(name='Other Workspace')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            current_workspace=other_workspace,
-        )
-        other_workspace.owner = other_user
-        other_workspace.save()
-
-        WorkspaceMember.objects.create(
-            workspace=other_workspace,
-            user=other_user,
-            role='owner',
-        )
-
-        other_account = BudgetAccount.objects.create(
-            workspace=other_workspace,
-            name='Other Account',
-            default_currency=self.currencies['PLN'],
-            created_by=other_user,
-        )
+        other_workspace, other_user, other_account, _ = create_other_workspace()
 
         other_period = BudgetPeriodFactory(
             budget_account=other_account,

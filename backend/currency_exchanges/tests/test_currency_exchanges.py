@@ -3,20 +3,17 @@
 from datetime import date
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from budget_accounts.models import BudgetAccount
 from budget_periods.factories import BudgetPeriodFactory
+from common.tests.helpers import create_other_workspace
 from common.tests.mixins import APIClientMixin, AuthMixin
 from currency_exchanges.factories import CurrencyExchangeFactory
 from currency_exchanges.models import CurrencyExchange
 from period_balances.factories import PeriodBalanceFactory
 from period_balances.models import PeriodBalance
-from workspaces.models import Workspace, WorkspaceMember
-
-User = get_user_model()
-
+from workspaces.models import WorkspaceMember
 
 # =============================================================================
 # Base Test Class
@@ -691,27 +688,7 @@ class TestExportCurrencyExchanges(CurrencyExchangeTestCase):
     def test_export_exchanges_from_other_workspace_fails(self):
         """Test exporting exchanges from another workspace returns 404."""
         # Create another workspace
-        other_workspace = Workspace.objects.create(name='Other Workspace')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            current_workspace=other_workspace,
-        )
-        other_workspace.owner = other_user
-        other_workspace.save()
-
-        WorkspaceMember.objects.create(
-            workspace=other_workspace,
-            user=other_user,
-            role='owner',
-        )
-
-        other_account = BudgetAccount.objects.create(
-            workspace=other_workspace,
-            name='Other Account',
-            default_currency=self.currencies['PLN'],
-            created_by=other_user,
-        )
+        other_workspace, other_user, other_account, _ = create_other_workspace()
 
         other_period = BudgetPeriodFactory(
             budget_account=other_account,
@@ -1006,23 +983,7 @@ class TestCurrencyExchangeTotals(CurrencyExchangeTestCase):
 
     def test_totals_cross_workspace_isolation(self):
         """Test that totals only returns exchanges from the user's workspace."""
-        other_workspace = Workspace.objects.create(name='Other Workspace')
-        other_user = User.objects.create_user(
-            email='other@example.com',
-            password='otherpass123',
-            current_workspace=other_workspace,
-        )
-        other_workspace.owner = other_user
-        other_workspace.save()
-
-        WorkspaceMember.objects.create(workspace=other_workspace, user=other_user, role='owner')
-
-        other_account = BudgetAccount.objects.create(
-            workspace=other_workspace,
-            name='Other Account',
-            default_currency=self.currencies['PLN'],
-            created_by=other_user,
-        )
+        other_workspace, other_user, other_account, other_currencies = create_other_workspace()
 
         other_period = BudgetPeriodFactory(
             budget_account=other_account,
@@ -1037,9 +998,9 @@ class TestCurrencyExchangeTotals(CurrencyExchangeTestCase):
             workspace=other_workspace,
             budget_period=other_period,
             date=date(2025, 4, 10),
-            from_currency=self.currencies['USD'],
+            from_currency=other_currencies['USD'],
             from_amount=Decimal('9999.00'),
-            to_currency=self.currencies['EUR'],
+            to_currency=other_currencies['EUR'],
             to_amount=Decimal('8888.00'),
             created_by=other_user,
             updated_by=other_user,
