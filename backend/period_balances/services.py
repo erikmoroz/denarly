@@ -64,6 +64,7 @@ class PeriodBalanceService:
         return period
 
     @staticmethod
+    @db_transaction.atomic
     def recalculate(period_id: int, currency_symbol: str) -> PeriodBalance:
         """Recalculate a period balance from scratch using aggregates."""
         from workspaces.models import Currency
@@ -127,6 +128,7 @@ class PeriodBalanceService:
         return balance
 
     @staticmethod
+    @db_transaction.atomic
     def recalculate_all(workspace_id: int, period_id: int) -> list[PeriodBalance]:
         """Recalculate all currency balances for a period."""
         PeriodBalanceService.get_validated_period(period_id, workspace_id)
