@@ -18,6 +18,7 @@ from currency_exchanges.exceptions import (
 from currency_exchanges.models import CurrencyExchange
 from currency_exchanges.schemas import CurrencyExchangeCreate, CurrencyExchangeImport, CurrencyExchangeUpdate
 from period_balances.models import PeriodBalance
+from workspaces.models import Currency
 
 
 class CurrencyExchangeService:
@@ -240,8 +241,6 @@ class CurrencyExchangeService:
     def import_data(user, workspace_id: int, period_id: int, data: list) -> int:
         """Bulk-create exchanges from parsed JSON data. Returns count of created records."""
         BudgetPeriodService.get(period_id, workspace_id)
-
-        from workspaces.models import Currency
 
         currency_map = {c.symbol: c for c in Currency.objects.for_workspace(workspace_id)}
 

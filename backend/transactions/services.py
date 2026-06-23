@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections import Counter, defaultdict
 from decimal import Decimal
 
 from django.db import transaction as db_transaction
-from django.db.models import F, Sum, Value
-from django.db.models.functions import Coalesce
+from django.db.models import Count, F, Sum, Value
+from django.db.models.functions import Coalesce, Lower
 
 from budget_periods.models import BudgetPeriod
 from budget_periods.services import BudgetPeriodService
@@ -23,6 +24,7 @@ from transactions.exceptions import (
 )
 from transactions.models import Transaction
 from transactions.schemas import TransactionCreate, TransactionImport
+from workspaces.models import Currency
 
 
 class TransactionService:
@@ -87,8 +89,6 @@ class TransactionService:
 
         Returns a dict mapping lowercase description → display (most common casing).
         """
-        from collections import Counter
-
         rows = queryset.values_list('description', flat=True)
         lower_groups: dict[str, list[str]] = {}
         for desc in rows:
@@ -112,8 +112,6 @@ class TransactionService:
         amount_lte: Decimal | None = None,
     ):
         """Build a filtered queryset for transactions. Returns None when current_date matches no period."""
-        from budget_periods.models import BudgetPeriod
-
         queryset = Transaction.objects.for_workspace(workspace_id)
 
         if budget_period_id:
@@ -275,8 +273,6 @@ class TransactionService:
         The base queryset is built once; both groupings are derived from a single
         database round-trip using Python-side aggregation over the filtered rows.
         """
-        from collections import defaultdict
-
         queryset = TransactionService._build_filtered_queryset(
             workspace_id=workspace_id,
             budget_period_id=budget_period_id,
@@ -330,9 +326,6 @@ class TransactionService:
 
         The `description` field uses the most common original casing for each group.
         """
-        from django.db.models import Count
-        from django.db.models.functions import Lower
-
         queryset = TransactionService._build_filtered_queryset(
             workspace_id=workspace_id,
             budget_period_id=budget_period_id,
@@ -465,8 +458,6 @@ class TransactionService:
     def import_data(user, workspace_id: int, period_id: int, data: list) -> int:
         """Bulk-create transactions from parsed JSON data. Returns count of created records."""
         BudgetPeriodService.get(period_id, workspace_id)
-
-        from workspaces.models import Currency
 
         currency_map = {c.symbol: c for c in Currency.objects.for_workspace(workspace_id)}
 

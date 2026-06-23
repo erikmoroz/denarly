@@ -1,11 +1,14 @@
 """Django-Ninja API endpoints for user management."""
 
+import json
 from typing import Literal
 
 from django.conf import settings
+from django.http import HttpResponse
 from ninja import Router
 
 from common.auth import JWTAuth, user_to_schema
+from common.json_encoder import GDPREncoder
 from common.throttle import rate_limit
 from common.utils import get_client_ip
 from core.schemas import (
@@ -154,12 +157,6 @@ def export_my_data(request):
 
     Rate limited to 3 exports per hour.
     """
-    import json
-
-    from django.http import HttpResponse
-
-    from common.json_encoder import GDPREncoder
-
     export_data = services.UserService.export_all_data(request.auth)
 
     response = HttpResponse(

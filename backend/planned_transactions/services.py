@@ -26,6 +26,7 @@ from planned_transactions.exceptions import (
 from planned_transactions.models import PlannedTransaction
 from planned_transactions.schemas import PlannedTransactionCreate, PlannedTransactionImport, PlannedTransactionUpdate
 from planned_transactions.tasks import execute_planned_transaction
+from workspaces.models import Currency
 
 
 class PlannedTransactionService:
@@ -295,8 +296,6 @@ class PlannedTransactionService:
     def import_data(user, workspace_id: int, period_id: int, data: list) -> int:
         """Bulk-create planned transactions from parsed JSON data. Returns count of created records."""
         BudgetPeriodService.get(period_id, workspace_id)
-
-        from workspaces.models import Currency
 
         currency_map = {c.symbol: c for c in Currency.objects.for_workspace(workspace_id)}
 
