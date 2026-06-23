@@ -40,19 +40,24 @@ class UserDeletionBlockedError(ValidationError):
 
 class UserAlreadyVerifiedError(ValidationError):
     default_message = 'Email is already verified'
+    default_code = 'user_already_verified'
 
 
 class UserInvalidVerificationTokenError(ValidationError):
     default_message = 'Invalid or expired verification token'
+    default_code = 'user_invalid_verification_token'
 
 
 class UserEmailAlreadyInUseError(ValidationError):
     default_message = 'This email is already in use'
+    default_code = 'user_email_already_in_use'
 
 
 class UserInvalidEmailChangeTokenError(ValidationError):
     default_message = 'Invalid or expired email change token'
+    default_code = 'user_invalid_email_change_token'
 
 
 class UserSameEmailError(ValidationError):
     default_message = 'New email must be different from current email'
+    default_code = 'user_same_email'
