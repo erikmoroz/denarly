@@ -14,10 +14,7 @@ const WEEKDAY_OPTIONS = [
 
 const FONT_OPTIONS = [
   { value: 'geist', label: 'Geist' },
-  { value: 'inter', label: 'Inter' },
-  { value: 'system', label: 'System UI' },
-  { value: 'roboto', label: 'Roboto' },
-  { value: 'lato', label: 'Lato' },
+  { value: 'jetbrains-mono', label: 'JetBrains Mono' },
 ]
 
 interface Props {

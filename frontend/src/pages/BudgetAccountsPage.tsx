@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import Skeleton from '../components/common/Skeleton'
 import EmptyState from '../components/common/EmptyState'
 import ConfirmDialog from '../components/common/ConfirmDialog'
+import Switch from '../components/common/Switch'
 import Modal from '../components/common/Modal'
 import Select from '../components/common/Select'
 import type { BudgetAccount } from '../types'
@@ -115,11 +116,10 @@ export default function BudgetAccountsPage() {
         <h1 className="text-base font-semibold text-text">Budget Accounts</h1>
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-2 text-sm text-text-muted">
-            <input
-              type="checkbox"
+            <Switch
               checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-              className="rounded-sm border-border focus:ring-border-focus"
+              onChange={setShowInactive}
+              aria-label="Show archived"
             />
             Show archived
           </label>
