@@ -298,7 +298,7 @@ class PlannedTransactionService:
 
         from workspaces.models import Currency
 
-        currency_map = {c.symbol: c for c in Currency.objects.filter(workspace_id=workspace_id)}
+        currency_map = {c.symbol: c for c in Currency.objects.for_workspace(workspace_id)}
 
         new_transactions = []
         for item in data:

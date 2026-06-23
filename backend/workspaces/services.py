@@ -123,7 +123,7 @@ class WorkspaceService:
 
             from budget_accounts.models import BudgetAccount
 
-            BudgetAccount.objects.filter(workspace_id=workspace_id).delete()
+            BudgetAccount.objects.for_workspace(workspace_id).delete()
 
             workspace.delete()
 
@@ -156,18 +156,18 @@ class CurrencyService:
     @staticmethod
     def list_currencies(workspace_id: int) -> list[Currency]:
         """List all currencies for a workspace."""
-        return list(Currency.objects.filter(workspace_id=workspace_id))
+        return list(Currency.objects.for_workspace(workspace_id))
 
     @staticmethod
     def get_currency(currency_id: int, workspace_id: int) -> Currency | None:
         """Get a currency by ID within a workspace."""
-        return Currency.objects.filter(id=currency_id, workspace_id=workspace_id).first()
+        return Currency.objects.for_workspace(workspace_id).filter(id=currency_id).first()
 
     @staticmethod
     @db_transaction.atomic
     def create_currency(workspace_id: int, data) -> Currency:
         """Create a new currency for a workspace."""
-        if Currency.objects.filter(workspace_id=workspace_id, symbol=data.symbol).exists():
+        if Currency.objects.for_workspace(workspace_id).filter(symbol=data.symbol).exists():
             raise CurrencyDuplicateSymbolError(data.symbol)
 
         return Currency.objects.create(
