@@ -195,7 +195,11 @@ def verify_email(request, data: VerifyEmailIn):
 
 
 @router.post('/resend-verification', response={200: MessageOut, 429: DetailOut})
-@rate_limit('resend_verification', limit=3, period=3600)
+@rate_limit(
+    'resend_verification',
+    limit=settings.RATE_LIMIT_RESEND_VERIFICATION,
+    period=settings.RATE_LIMIT_RESEND_VERIFICATION_PERIOD,
+)
 def resend_verification(request, data: ResendVerificationIn):
     from users.services import UserService
 
@@ -204,7 +208,9 @@ def resend_verification(request, data: ResendVerificationIn):
 
 
 @router.post('/forgot-password', response={200: MessageOut, 429: DetailOut})
-@rate_limit('forgot_password', limit=3, period=3600)
+@rate_limit(
+    'forgot_password', limit=settings.RATE_LIMIT_FORGOT_PASSWORD, period=settings.RATE_LIMIT_FORGOT_PASSWORD_PERIOD
+)
 def forgot_password(request, data: ForgotPasswordIn):
     from users.services import UserService
 
@@ -213,7 +219,9 @@ def forgot_password(request, data: ForgotPasswordIn):
 
 
 @router.post('/reset-password', response={200: MessageOut, 400: DetailOut, 429: DetailOut})
-@rate_limit('reset_password', limit=5, period=60)
+@rate_limit(
+    'reset_password', limit=settings.RATE_LIMIT_RESET_PASSWORD, period=settings.RATE_LIMIT_RESET_PASSWORD_PERIOD
+)
 def reset_password(request, data: ResetPasswordIn):
     from users.services import UserService
 

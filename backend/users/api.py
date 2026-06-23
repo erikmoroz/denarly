@@ -171,7 +171,7 @@ def export_my_data(request):
 
 
 @router.post('/me/import', auth=JWTAuth(), response={200: ImportResultOut, 400: DetailOut})
-@rate_limit('data_import', limit=3, period=3600)
+@rate_limit('data_import', limit=settings.RATE_LIMIT_DATA_IMPORT, period=settings.RATE_LIMIT_DATA_IMPORT_PERIOD)
 def import_my_data(request, data: FullImportIn):
     """
     Import all data from GDPR export.
