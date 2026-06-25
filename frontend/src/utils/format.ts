@@ -11,14 +11,35 @@
  */
 export function formatAmount(value: string | number, currency?: string): string {
   // String-based formatting preserves full Decimal precision from the backend
-  // and avoids parseFloat, which loses precision for large values.
+  // and avoids parseFloat, which loses precision for large values. Rounding to
+  // 2 decimals uses integer (BigInt) arithmetic so a 3rd-digit carry propagates
+  // correctly (e.g. 9.999 -> 10.00) without floating-point error.
   const total = String(value)
   const isNegative = total.startsWith('-')
   const abs = isNegative ? total.slice(1) : total
-  const [intPart, decPart = '00'] = abs.split('.')
-  const paddedDec = decPart.length < 2 ? decPart.padEnd(2, '0') : decPart.slice(0, 2)
-  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  const [rawInt, decPart = ''] = abs.split('.')
+  const intPart = rawInt || '0'
+
+  // Keep 2 decimals; inspect the 3rd to decide rounding (padEnd so a short/no
+  // decimal part still yields a 3rd digit to test, defaulting to "no round up").
+  const decPadded = decPart.padEnd(3, '0').slice(0, 3)
+  const keep = decPadded.slice(0, 2)
+  const roundUp = decPadded[2] >= '5'
+
+  // combined = intPart concatenated with the 2 kept decimals (the value × 100 as an integer string).
+  let combined = intPart + keep
+  if (roundUp) {
+    combined = String(BigInt(combined) + 1n)
+  }
+  // Ensure at least 3 digits (one integer + two decimals) so the split below is
+  // correct even when a carry shortens the string (e.g. 0.009 -> combined "1" -> "001" -> "0.01").
+  combined = combined.padStart(3, '0')
+
+  const newDec = combined.slice(-2)
+  const newInt = combined.slice(0, -2) || '0'
+  const formattedInt = newInt.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+
   const sign = isNegative ? '-' : ''
-  const base = `${sign}${formattedInt}.${paddedDec}`
+  const base = `${sign}${formattedInt}.${newDec}`
   return currency ? `${base} ${currency}` : base
 }
