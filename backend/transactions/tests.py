@@ -948,6 +948,24 @@ class TestImportTransactions(TransactionsTestCase):
         )
         self.assertStatus(400)
 
+    def test_import_transactions_invalid_binary_file_returns_400(self):
+        """A non-JSON / non-UTF-8 upload returns 400, not 500 (UnicodeDecodeError is caught)."""
+        # A PNG header is not valid UTF-8, so json.loads() raises UnicodeDecodeError
+        # (a ValueError, not a json.JSONDecodeError) which must be caught as a 400.
+        file = SimpleUploadedFile(
+            'transactions.json',
+            b'\x89PNG\r\n\x1a\n',
+            content_type='application/json',
+        )
+
+        data = self.post_file(
+            '/api/transactions/import',
+            {'file': file, 'budget_period_id': self.period.id},
+            **self.auth_headers(),
+        )
+        self.assertStatus(400)
+        self.assertEqual(data['detail'], 'Invalid JSON file.')
+
     def test_import_transactions_invalid_format_fails(self):
         """Test importing with invalid data format."""
         import json

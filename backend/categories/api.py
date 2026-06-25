@@ -65,7 +65,7 @@ def import_categories(
         data = json.loads(contents)
         if not isinstance(data, list) or not all(isinstance(item, str) for item in data):
             return 400, {'detail': 'Invalid JSON format. Expected a list of strings.'}
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return 400, {'detail': 'Invalid JSON file.'}
 
     count = CategoryService.import_data(user, workspace_id, budget_period_id, data)

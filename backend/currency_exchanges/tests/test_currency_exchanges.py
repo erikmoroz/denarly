@@ -785,6 +785,26 @@ class TestImportCurrencyExchanges(CurrencyExchangeTestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_import_exchanges_invalid_binary_file_returns_400(self):
+        """A non-JSON / non-UTF-8 upload returns 400, not 500 (UnicodeDecodeError is caught)."""
+        import tempfile
+
+        # A PNG header is not valid UTF-8, so json.loads() raises UnicodeDecodeError
+        # (a ValueError, not a json.JSONDecodeError) which must be caught as a 400.
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.json', delete=False) as f:
+            f.write(b'\x89PNG\r\n\x1a\n')
+            f.flush()
+
+            with open(f.name, 'rb') as file:
+                response = self.client.post(
+                    '/api/currency-exchanges/import',
+                    data={'file': file, 'budget_period_id': self.period1.id},
+                    **self.auth_headers(),
+                )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['detail'], 'Invalid JSON file.')
+
     def test_import_exchanges_invalid_data_fails(self):
         """Test importing with invalid data format fails."""
         import json
