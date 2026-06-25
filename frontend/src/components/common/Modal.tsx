@@ -31,17 +31,23 @@ export default function Modal({
 
   return (
     <>
-      {/* Backdrop — fixed sibling BELOW the panel. Click dismisses. */}
+      {/* Backdrop — visual scrim only (dismiss-on-outside-click is owned by the wrapper below,
+          which sits above this at z-modal and would otherwise intercept the click). */}
       <div
         className="fixed inset-0 z-modal-backdrop bg-scrim backdrop-blur-sm"
-        onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Panel wrapper — centers the panel, sits ABOVE the backdrop. Mobile: bottom sheet. */}
-      <div className="fixed inset-0 z-modal flex items-center justify-center p-4 max-sm:items-end max-sm:p-0">
+      {/* Panel wrapper — centers the panel; sits above the backdrop. Clicking the dimmed area
+          (i.e. the wrapper, NOT the panel) dismisses; the panel stops propagation so clicks
+          inside the body/buttons don't bubble up and close the modal. */}
+      <div
+        className="fixed inset-0 z-modal flex items-center justify-center p-4 max-sm:items-end max-sm:p-0"
+        onClick={onClose}
+      >
         <div
           className={`relative bg-surface border border-border rounded-sm w-full ${SIZE_CLASS[size]} ${className} max-sm:rounded-t-sm max-sm:rounded-b-none max-sm:max-h-[92dvh] max-sm:overflow-y-auto`}
+          onClick={(e) => e.stopPropagation()}
         >
           <button
             type="button"
