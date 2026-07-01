@@ -12,6 +12,7 @@ interface Props {
   disabled?: boolean
   id?: string
   placeholder?: string
+  inline?: boolean
 }
 
 export default function DatePicker({
@@ -22,6 +23,7 @@ export default function DatePicker({
   disabled = false,
   id,
   placeholder = 'Select date',
+  inline = false,
 }: Props) {
   const { calendarStartDay } = useUserPreferences()
   const [isOpen, setIsOpen] = useState(false)
@@ -55,6 +57,21 @@ export default function DatePicker({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Inline mode: always-visible calendar, no input field, no popup logic.
+  if (inline) {
+    return (
+      <div className={`bg-surface rounded-sm border border-border p-4 ${className}`}>
+        <DayPicker
+          mode="single"
+          selected={selectedDate}
+          onSelect={handleDaySelect}
+          weekStartsOn={isoToJsWeekday(calendarStartDay)}
+          defaultMonth={selectedDate}
+        />
+      </div>
+    )
+  }
 
   return (
     <div ref={containerRef} className="relative">
