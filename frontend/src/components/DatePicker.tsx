@@ -59,9 +59,11 @@ export default function DatePicker({
   }, [])
 
   // Inline mode: always-visible calendar, no input field, no popup logic.
+  // The `rdp-inline` class scopes the compact, full-width, design-token-themed
+  // overrides in index.css — the popup path keeps react-day-picker's defaults.
   if (inline) {
     return (
-      <div className={`bg-surface rounded-sm border border-border p-4 ${className}`}>
+      <div className={`rdp-inline bg-surface rounded-sm border border-border p-3 ${className}`}>
         <DayPicker
           mode="single"
           selected={selectedDate}
